@@ -1,0 +1,2771 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CADRecover read API",
+    "description": "Read-only JSON, resumable Server-Sent Events and public artifacts for the CADRecover validator. Nothing here is invented: empty lists mean nothing has happened yet.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "tags": [
+          "status"
+        ],
+        "summary": "Health",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "tags": [
+          "status"
+        ],
+        "summary": "Status",
+        "operationId": "status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "List Runs",
+        "operationId": "list_runs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "dispatching",
+                    "collecting",
+                    "evaluating",
+                    "done",
+                    "aborted"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "title": "Response List Runs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run",
+        "operationId": "get_run",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/challenges/{challenge_id}": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Challenge",
+        "operationId": "get_challenge",
+        "parameters": [
+          {
+            "name": "challenge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Challenge Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChallengeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/leaderboard": {
+      "get": {
+        "tags": [
+          "standings"
+        ],
+        "summary": "Leaderboard",
+        "operationId": "leaderboard",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Leaderboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/miners/{hotkey}": {
+      "get": {
+        "tags": [
+          "standings"
+        ],
+        "summary": "Get Miner",
+        "operationId": "get_miner",
+        "parameters": [
+          {
+            "name": "hotkey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Hotkey"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MinerDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/weights": {
+      "get": {
+        "tags": [
+          "chain"
+        ],
+        "summary": "Weights",
+        "operationId": "weights",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeightBatchOut"
+                  },
+                  "title": "Response Weights"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/commitments": {
+      "get": {
+        "tags": [
+          "chain"
+        ],
+        "summary": "List Commitments",
+        "operationId": "list_commitments",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CommitmentOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Commitments"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/audits": {
+      "get": {
+        "tags": [
+          "chain"
+        ],
+        "summary": "List Audits",
+        "operationId": "list_audits",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "hotkey",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hotkey"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditOut"
+                  },
+                  "title": "Response List Audits"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/challenges/{challenge_id}/drawing.png": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Drawing",
+        "operationId": "drawing",
+        "parameters": [
+          {
+            "name": "challenge_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Challenge Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The drawing PNG",
+            "content": {
+              "image/png": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs/{run_id}/miners/{uid}/models/{name}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Model",
+        "description": "`s<0-3>.candidate.glb` once the miner is evaluated; `s<0-3>.reference.glb` only after the challenge retires.",
+        "operationId": "model",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A GLB mesh written by the validator",
+            "content": {
+              "model/gltf-binary": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "List Events",
+        "operationId": "list_events",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "After"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "exact kind, or a prefix such as `weights`",
+              "title": "Kind"
+            },
+            "description": "exact kind, or a prefix such as `weights`"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventsPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events/stream": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Stream Events",
+        "operationId": "stream_events",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "replay events newer than this id; omit to receive only new events; 0 replays everything",
+              "title": "After"
+            },
+            "description": "replay events newer than this id; omit to receive only new events; 0 replays everything"
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "exact kind, or a prefix such as `job`",
+              "title": "Kind"
+            },
+            "description": "exact kind, or a prefix such as `job`"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "close after this many events (for scripts and tests)",
+              "title": "Limit"
+            },
+            "description": "close after this many events (for scripts and tests)"
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "set by EventSource on reconnect; wins over `after`",
+              "title": "Last-Event-Id"
+            },
+            "description": "set by EventSource on reconnect; wins over `after`"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE. Each message: `id: <event_id>` and `data: <EventOut JSON>`",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Artifact": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "media_type"
+        ],
+        "title": "Artifact",
+        "description": "A file in the public artifact store or the private runtime folder, pinned by hash."
+      },
+      "AuditOut": {
+        "properties": {
+          "audit_run": {
+            "type": "string",
+            "title": "Audit Run"
+          },
+          "hotkey": {
+            "type": "string",
+            "title": "Hotkey"
+          },
+          "uid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uid"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "engine_digest": {
+            "type": "string",
+            "title": "Engine Digest"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "inconclusive"
+            ],
+            "title": "Verdict"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "live_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Mean"
+          },
+          "audit_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Mean"
+          },
+          "margin": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin"
+          },
+          "block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "commitment": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitment",
+            "description": "the on-chain commitment that was audited"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/AuditTask"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_run",
+          "hotkey",
+          "uid",
+          "label",
+          "engine_digest",
+          "verdict",
+          "reason",
+          "live_mean",
+          "audit_mean",
+          "margin",
+          "block",
+          "at",
+          "commitment",
+          "tasks"
+        ],
+        "title": "AuditOut"
+      },
+      "AuditStatus": {
+        "properties": {
+          "audit_run": {
+            "type": "string",
+            "title": "Audit Run"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "inconclusive"
+            ],
+            "title": "Verdict"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block"
+          },
+          "engine_digest": {
+            "type": "string",
+            "title": "Engine Digest"
+          },
+          "live_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Mean"
+          },
+          "audit_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Mean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_run",
+          "verdict",
+          "at",
+          "block",
+          "engine_digest",
+          "live_mean",
+          "audit_mean",
+          "reason"
+        ],
+        "title": "AuditStatus"
+      },
+      "AuditTask": {
+        "properties": {
+          "audit_id": {
+            "type": "string",
+            "title": "Audit Id"
+          },
+          "task_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Index"
+          },
+          "challenge_id": {
+            "type": "string",
+            "title": "Challenge Id"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_id",
+          "task_index",
+          "challenge_id",
+          "quality",
+          "passed",
+          "error"
+        ],
+        "title": "AuditTask"
+      },
+      "ChainInfo": {
+        "properties": {
+          "network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Network",
+            "description": "'local' or 'test' (never mainnet in this build); null if unknown"
+          },
+          "netuid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Netuid"
+          },
+          "validator_hotkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validator Hotkey"
+          },
+          "commit_reveal_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit Reveal Enabled"
+          },
+          "tempo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tempo"
+          },
+          "block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block",
+            "description": "current chain head, read with a short timeout; null if unreachable"
+          },
+          "reachable": {
+            "type": "boolean",
+            "title": "Reachable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "network",
+          "netuid",
+          "validator_hotkey",
+          "commit_reveal_enabled",
+          "tempo",
+          "block",
+          "reachable"
+        ],
+        "title": "ChainInfo",
+        "description": "The chain this validator is bound to (from ~/.cadrecover/chain.json) and, if reachable, its head."
+      },
+      "ChallengeOut": {
+        "properties": {
+          "protocol_version": {
+            "type": "string",
+            "title": "Protocol Version",
+            "default": "0.2.0"
+          },
+          "scoring_version": {
+            "type": "string",
+            "title": "Scoring Version",
+            "default": "2.1"
+          },
+          "challenge_id": {
+            "type": "string",
+            "title": "Challenge Id"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "plate",
+              "flange",
+              "wafer_chuck",
+              "vacuum_chamber"
+            ],
+            "title": "Family"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "deadline_s": {
+            "type": "integer",
+            "title": "Deadline S",
+            "default": 180
+          },
+          "units": {
+            "type": "string",
+            "const": "mm",
+            "title": "Units",
+            "default": "mm"
+          },
+          "frame": {
+            "type": "string",
+            "title": "Frame"
+          },
+          "entry_point": {
+            "type": "string",
+            "title": "Entry Point",
+            "default": "build_part(overrides: dict[str, float]) -> build123d.Part"
+          },
+          "engine": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Engine"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/ParameterSpec"
+            },
+            "type": "array",
+            "title": "Parameters"
+          },
+          "edit_rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Edit Rules"
+          },
+          "critical_features": {
+            "items": {
+              "$ref": "#/components/schemas/CriticalFeatureSpec"
+            },
+            "type": "array",
+            "title": "Critical Features"
+          },
+          "drawing": {
+            "$ref": "#/components/schemas/Artifact"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "retired"
+            ],
+            "title": "Status"
+          },
+          "retired_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired At"
+          },
+          "drawing_url": {
+            "type": "string",
+            "title": "Drawing Url",
+            "description": "API path of the drawing PNG"
+          }
+        },
+        "type": "object",
+        "required": [
+          "challenge_id",
+          "family",
+          "frame",
+          "parameters",
+          "edit_rules",
+          "critical_features",
+          "drawing",
+          "status",
+          "retired_at",
+          "drawing_url"
+        ],
+        "title": "ChallengeOut",
+        "description": "The PUBLIC challenge record only (names and ranges, never values), plus its lifecycle."
+      },
+      "CommitmentOut": {
+        "properties": {
+          "hotkey": {
+            "type": "string",
+            "title": "Hotkey"
+          },
+          "registered_at_block": {
+            "type": "integer",
+            "title": "Registered At Block"
+          },
+          "uid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uid"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "engine_digest": {
+            "type": "string",
+            "title": "Engine Digest"
+          },
+          "strategy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy Version"
+          },
+          "block": {
+            "type": "integer",
+            "title": "Block"
+          },
+          "latest": {
+            "type": "boolean",
+            "title": "Latest",
+            "description": "the newest commitment for this identity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hotkey",
+          "registered_at_block",
+          "uid",
+          "label",
+          "engine_digest",
+          "strategy_version",
+          "block",
+          "latest"
+        ],
+        "title": "CommitmentOut"
+      },
+      "Counts": {
+        "properties": {
+          "challenges": {
+            "type": "integer",
+            "title": "Challenges"
+          },
+          "active_challenges": {
+            "type": "integer",
+            "title": "Active Challenges"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs"
+          },
+          "miners": {
+            "type": "integer",
+            "title": "Miners"
+          },
+          "assignments": {
+            "type": "integer",
+            "title": "Assignments"
+          },
+          "evaluations": {
+            "type": "integer",
+            "title": "Evaluations"
+          },
+          "weight_batches": {
+            "type": "integer",
+            "title": "Weight Batches"
+          },
+          "receipts": {
+            "type": "integer",
+            "title": "Receipts"
+          },
+          "commitments": {
+            "type": "integer",
+            "title": "Commitments"
+          },
+          "audits": {
+            "type": "integer",
+            "title": "Audits"
+          },
+          "events": {
+            "type": "integer",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "challenges",
+          "active_challenges",
+          "runs",
+          "miners",
+          "assignments",
+          "evaluations",
+          "weight_batches",
+          "receipts",
+          "commitments",
+          "audits",
+          "events"
+        ],
+        "title": "Counts"
+      },
+      "CriticalFeatureSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "hole",
+              "bolt_circle",
+              "bore",
+              "port",
+              "slot",
+              "length"
+            ],
+            "title": "Kind"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "size_tolerance_mm": {
+            "type": "number",
+            "title": "Size Tolerance Mm"
+          },
+          "position_tolerance_mm": {
+            "type": "number",
+            "title": "Position Tolerance Mm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "description",
+          "size_tolerance_mm",
+          "position_tolerance_mm"
+        ],
+        "title": "CriticalFeatureSpec",
+        "description": "A feature checked at every parameter set; missing or misplaced zeroes that set (PRD v2.1)."
+      },
+      "EventOut": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "at",
+          "kind",
+          "run_id",
+          "payload"
+        ],
+        "title": "EventOut"
+      },
+      "EventsPage": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventOut"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "next_after": {
+            "type": "integer",
+            "title": "Next After",
+            "description": "pass this as `after` to continue; unchanged when nothing new"
+          },
+          "latest_event_id": {
+            "type": "integer",
+            "title": "Latest Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events",
+          "next_after",
+          "latest_event_id"
+        ],
+        "title": "EventsPage"
+      },
+      "FailedCheckOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 3,
+                "minItems": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "message",
+          "location"
+        ],
+        "title": "FailedCheckOut"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "db": {
+            "type": "string",
+            "title": "Db"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "db"
+        ],
+        "title": "Health"
+      },
+      "Leaderboard": {
+        "properties": {
+          "quality_floor": {
+            "type": "number",
+            "title": "Quality Floor"
+          },
+          "window": {
+            "type": "integer",
+            "title": "Window"
+          },
+          "min_samples": {
+            "type": "integer",
+            "title": "Min Samples"
+          },
+          "latest_batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Batch Id"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quality_floor",
+          "window",
+          "min_samples",
+          "latest_batch_id",
+          "rows"
+        ],
+        "title": "Leaderboard"
+      },
+      "LeaderboardRow": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "uid": {
+            "type": "integer",
+            "title": "Uid"
+          },
+          "hotkey": {
+            "type": "string",
+            "title": "Hotkey"
+          },
+          "registered_at_block": {
+            "type": "integer",
+            "title": "Registered At Block"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "samples": {
+            "type": "integer",
+            "title": "Samples",
+            "description": "completed tasks in the rolling window"
+          },
+          "mean_quality": {
+            "type": "number",
+            "title": "Mean Quality",
+            "description": "rolling mean Q (0..100)"
+          },
+          "above_floor": {
+            "type": "number",
+            "title": "Above Floor"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight",
+            "description": "normalised weight from the standings formula over identities in the newest run; failed audits zero it"
+          },
+          "latest_batch_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Batch Weight",
+            "description": "weight the newest batch gave this uid; null if this identity was not in that batch's run"
+          },
+          "drawing_pass_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawing Pass Rate",
+            "description": "share of tasks whose set 0 passed every check"
+          },
+          "edit_pass_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit Pass Rate",
+            "description": "share of hidden-edit sets (1-3) that passed every check"
+          },
+          "mean_geometry": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Geometry"
+          },
+          "mean_dimensions": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Dimensions"
+          },
+          "committed_engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Committed Engine"
+          },
+          "audit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuditStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "uid",
+          "hotkey",
+          "registered_at_block",
+          "label",
+          "samples",
+          "mean_quality",
+          "above_floor",
+          "weight",
+          "latest_batch_weight",
+          "drawing_pass_rate",
+          "edit_pass_rate",
+          "mean_geometry",
+          "mean_dimensions",
+          "committed_engine",
+          "audit"
+        ],
+        "title": "LeaderboardRow"
+      },
+      "MinerBatchAppearance": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "mean_quality": {
+            "type": "number",
+            "title": "Mean Quality"
+          },
+          "samples": {
+            "type": "integer",
+            "title": "Samples"
+          },
+          "latest_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "proposed",
+                  "submitted",
+                  "committed",
+                  "revealed",
+                  "failed",
+                  "skipped_no_qualifier"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "created_at",
+          "mean_quality",
+          "samples",
+          "latest_state"
+        ],
+        "title": "MinerBatchAppearance"
+      },
+      "MinerDetail": {
+        "properties": {
+          "hotkey": {
+            "type": "string",
+            "title": "Hotkey"
+          },
+          "identities": {
+            "items": {
+              "$ref": "#/components/schemas/MinerIdentity"
+            },
+            "type": "array",
+            "title": "Identities",
+            "description": "one per registration; a recycled UID starts fresh"
+          },
+          "standing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LeaderboardRow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/MinerHistoryItem"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "commitments": {
+            "items": {
+              "$ref": "#/components/schemas/CommitmentOut"
+            },
+            "type": "array",
+            "title": "Commitments"
+          },
+          "audits": {
+            "items": {
+              "$ref": "#/components/schemas/AuditOut"
+            },
+            "type": "array",
+            "title": "Audits"
+          },
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/MinerBatchAppearance"
+            },
+            "type": "array",
+            "title": "Batches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hotkey",
+          "identities",
+          "standing",
+          "history",
+          "commitments",
+          "audits",
+          "batches"
+        ],
+        "title": "MinerDetail"
+      },
+      "MinerHistoryItem": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "title": "Challenge Id"
+          },
+          "evaluated_at": {
+            "type": "string",
+            "title": "Evaluated At"
+          },
+          "assignment_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "failed",
+              "timeout"
+            ],
+            "title": "Assignment Status"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "failure_class": {
+            "type": "string",
+            "enum": [
+              "none",
+              "miner",
+              "validator_outage"
+            ],
+            "title": "Failure Class"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "set_q": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Set Q",
+            "description": "Q_s for sets 0..3 (0..1)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "run_id",
+          "challenge_id",
+          "evaluated_at",
+          "assignment_status",
+          "quality",
+          "failure_class",
+          "failure_reason",
+          "set_q"
+        ],
+        "title": "MinerHistoryItem"
+      },
+      "MinerIdentity": {
+        "properties": {
+          "hotkey": {
+            "type": "string",
+            "title": "Hotkey"
+          },
+          "registered_at_block": {
+            "type": "integer",
+            "title": "Registered At Block"
+          },
+          "uid": {
+            "type": "integer",
+            "title": "Uid"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "first_seen": {
+            "type": "string",
+            "title": "First Seen"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hotkey",
+          "registered_at_block",
+          "uid",
+          "label",
+          "first_seen"
+        ],
+        "title": "MinerIdentity"
+      },
+      "MinerRunResult": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "uid": {
+            "type": "integer",
+            "title": "Uid"
+          },
+          "hotkey": {
+            "type": "string",
+            "title": "Hotkey"
+          },
+          "registered_at_block": {
+            "type": "integer",
+            "title": "Registered At Block"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "assignment_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "failed",
+              "timeout"
+            ],
+            "title": "Assignment Status"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "evaluated": {
+            "type": "boolean",
+            "title": "Evaluated"
+          },
+          "evaluated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated At"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality",
+            "description": "Q (0..100); null for a validator outage or before evaluation"
+          },
+          "failure_class": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "miner",
+                  "validator_outage"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Class"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/SetResult"
+            },
+            "type": "array",
+            "title": "Sets"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sha256"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "strategy_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy Version"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "received_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received At"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelFile"
+            },
+            "type": "array",
+            "title": "Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "uid",
+          "hotkey",
+          "registered_at_block",
+          "label",
+          "assignment_status",
+          "sent_at",
+          "evaluated",
+          "evaluated_at",
+          "quality",
+          "failure_class",
+          "failure_reason",
+          "sets",
+          "source_sha256",
+          "model_id",
+          "strategy_version",
+          "duration_s",
+          "received_at",
+          "models"
+        ],
+        "title": "MinerRunResult"
+      },
+      "ModelFile": {
+        "properties": {
+          "set_index": {
+            "type": "integer",
+            "title": "Set Index"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "reference"
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "API path of the GLB (served read-only)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "set_index",
+          "kind",
+          "url"
+        ],
+        "title": "ModelFile"
+      },
+      "ParameterSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "unit": {
+            "type": "string",
+            "const": "mm",
+            "title": "Unit",
+            "default": "mm"
+          },
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "min",
+          "max"
+        ],
+        "title": "ParameterSpec",
+        "description": "A parameter the miner's build_part(params) must accept, and the range it may be edited over."
+      },
+      "ReceiptOut": {
+        "properties": {
+          "receipt_id": {
+            "type": "integer",
+            "title": "Receipt Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "submitted",
+              "committed",
+              "revealed",
+              "failed",
+              "skipped_no_qualifier"
+            ],
+            "title": "State"
+          },
+          "block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block"
+          },
+          "extrinsic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extrinsic"
+          },
+          "readback": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readback",
+            "description": "weights read back from chain (uid -> weight)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "receipt_id",
+          "state",
+          "block",
+          "extrinsic",
+          "readback",
+          "error",
+          "at"
+        ],
+        "title": "ReceiptOut"
+      },
+      "RunDetail": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunSummary"
+          },
+          "challenge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChallengeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/MinerRunResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run",
+          "challenge",
+          "results"
+        ],
+        "title": "RunDetail"
+      },
+      "RunSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "title": "Challenge Id"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "dispatching",
+              "collecting",
+              "evaluating",
+              "done",
+              "aborted"
+            ],
+            "title": "Status"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          },
+          "deadline_at": {
+            "type": "string",
+            "title": "Deadline At"
+          },
+          "miners": {
+            "type": "integer",
+            "title": "Miners",
+            "description": "assignments in this run"
+          },
+          "evaluated": {
+            "type": "integer",
+            "title": "Evaluated",
+            "description": "assignments with a stored evaluation"
+          },
+          "mean_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Quality",
+            "description": "mean Q over evaluated, non-outage miners (0..100)"
+          },
+          "best_quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Quality"
+          },
+          "best_uid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Uid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "challenge_id",
+          "family",
+          "status",
+          "started_at",
+          "deadline_at",
+          "miners",
+          "evaluated",
+          "mean_quality",
+          "best_quality",
+          "best_uid"
+        ],
+        "title": "RunSummary"
+      },
+      "SetResult": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Index"
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid",
+            "description": "V_s: the build ran and produced a valid solid"
+          },
+          "critical_ok": {
+            "type": "boolean",
+            "title": "Critical Ok",
+            "description": "C_s: every critical feature present and in place"
+          },
+          "geometry": {
+            "type": "number",
+            "title": "Geometry",
+            "description": "G_s: solid IoU against the reference, 0..1"
+          },
+          "dimensions": {
+            "type": "number",
+            "title": "Dimensions",
+            "description": "D_s: fraction of dimensions within tolerance, 0..1"
+          },
+          "q_s": {
+            "type": "number",
+            "title": "Q S",
+            "description": "Q_s = V * C * (0.7 G + 0.3 D), 0..1"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed",
+            "description": "valid, critical features ok and no failed checks"
+          },
+          "failed_check_count": {
+            "type": "integer",
+            "title": "Failed Check Count"
+          },
+          "failed_checks": {
+            "items": {
+              "$ref": "#/components/schemas/FailedCheckOut"
+            },
+            "type": "array",
+            "title": "Failed Checks",
+            "description": "empty while the challenge is active: failed checks name hidden edits and carry true values"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values",
+            "description": "the parameter values this set was built with; null until the challenge is retired"
+          },
+          "revealed": {
+            "type": "boolean",
+            "title": "Revealed",
+            "description": "false while the challenge is active (hidden values withheld)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "valid",
+          "critical_ok",
+          "geometry",
+          "dimensions",
+          "q_s",
+          "passed",
+          "failed_check_count",
+          "failed_checks",
+          "values",
+          "revealed"
+        ],
+        "title": "SetResult",
+        "description": "One scored parameter set: s0 (the drawing's values) or one of three hidden edits."
+      },
+      "StatusOut": {
+        "properties": {
+          "protocol_version": {
+            "type": "string",
+            "title": "Protocol Version"
+          },
+          "scoring_version": {
+            "type": "string",
+            "title": "Scoring Version"
+          },
+          "cad_engine": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Cad Engine"
+          },
+          "quality_floor": {
+            "type": "number",
+            "title": "Quality Floor"
+          },
+          "server_time": {
+            "type": "string",
+            "title": "Server Time"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/ChainInfo"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "latest_event_id": {
+            "type": "integer",
+            "title": "Latest Event Id",
+            "description": "highest event_id in the log (0 when empty)"
+          },
+          "latest_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "protocol_version",
+          "scoring_version",
+          "cad_engine",
+          "quality_floor",
+          "server_time",
+          "chain",
+          "counts",
+          "latest_event_id",
+          "latest_run"
+        ],
+        "title": "StatusOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WeightBatchOut": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "network": {
+            "type": "string",
+            "enum": [
+              "local",
+              "test"
+            ],
+            "title": "Network"
+          },
+          "netuid": {
+            "type": "integer",
+            "title": "Netuid"
+          },
+          "validator_hotkey": {
+            "type": "string",
+            "title": "Validator Hotkey"
+          },
+          "floor": {
+            "type": "number",
+            "title": "Floor"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "mean_quality": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Mean Quality"
+          },
+          "samples": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Samples"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Weights",
+            "description": "uid -> normalised weight; empty means no update"
+          },
+          "latest_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "proposed",
+                  "submitted",
+                  "committed",
+                  "revealed",
+                  "failed",
+                  "skipped_no_qualifier"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest State"
+          },
+          "receipts": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptOut"
+            },
+            "type": "array",
+            "title": "Receipts",
+            "description": "every transition, oldest first; commit and reveal stay separate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "run_id",
+          "network",
+          "netuid",
+          "validator_hotkey",
+          "floor",
+          "created_at",
+          "mean_quality",
+          "samples",
+          "weights",
+          "latest_state",
+          "receipts"
+        ],
+        "title": "WeightBatchOut"
+      }
+    }
+  }
+}

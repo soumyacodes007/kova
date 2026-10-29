@@ -1,0 +1,22 @@
+# CADRecover services (owner: agent B). Phase 1 runs only the local chain; the
+# other services are added by the phase that builds them (see PRD "Processes").
+#
+#   docker compose up -d localnet      # Bittensor localnet on 127.0.0.1:9944 (fast 0.25 s blocks)
+#
+# Ports bind to 127.0.0.1 only. Never point anything in this build at mainnet.
+services:
+  localnet:
+    image: ghcr.io/raofoundation/subtensor-localnet:devnet
+    container_name: cadrecover-localnet
+    ports:
+      - "127.0.0.1:9944:9944"
+      - "127.0.0.1:9945:9945"
+    restart: unless-stopped
+
+  # Added in later phases (owner in brackets):
+  # api:        Phase 8  [C]  read API, operator actions, SSE
+  # validator:  Phase 5  [B]  challenges, dispatch, aggregation
+  # miner-1..5: Phase 4  [C]  one process per miner, own wallet and port
+  # cad-worker: Phase 3  [A]  sandboxed rebuilds (no network, resource caps)
+  # chain:      Phase 6  [B]  metagraph, weights, receipts, commitments
+  # auditor:    Phase 7  [A]  re-runs committed engines

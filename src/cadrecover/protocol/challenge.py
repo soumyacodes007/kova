@@ -61,7 +61,11 @@ class PublicChallenge(BaseModel):
     deadline_s: int = 180
     units: Literal["mm"] = "mm"
     frame: str  # the coordinate frame miners must build in
-    entry_point: str = "build_part(params: dict[str, float]) -> build123d.Part"
+    # build_part is called with {} for the part exactly as drawn, and with only the
+    # *changed* parameters for each hidden edit. Every other dimension must come from
+    # what the miner read off the drawing; passing all values would let a template
+    # score without ever reading it.
+    entry_point: str = "build_part(overrides: dict[str, float]) -> build123d.Part"
     engine: dict[str, str] = Field(default_factory=lambda: dict(CAD_ENGINE))
     parameters: list[ParameterSpec]
     edit_rules: list[str]  # how features must follow parameter changes
@@ -84,7 +88,8 @@ class ParameterSet(BaseModel):
     """One of the four sets a task is scored at: s0 (the drawing) or a hidden edit."""
 
     index: int  # 0 = the drawing's values; 1-3 = hidden edits
-    values: dict[str, float]
+    values: dict[str, float]  # the full parameter values the reference is built with
+    overrides: dict[str, float] = Field(default_factory=dict)  # what build_part receives: {} at s0, changed keys at edits
     reference: Artifact | None = None  # reference STEP rebuilt at these values
     measurements: list[FeatureMeasurement] = Field(default_factory=list)
     volume_mm3: float | None = None

@@ -106,6 +106,34 @@ def sample(seed: int) -> dict[str, float]:
             return params
 
 
+def edit_candidate(base: dict[str, float], rng: random.Random) -> dict[str, float] | None:
+    """A proposed hidden edit: width and/or length change by 15-40%, sometimes the hole size or
+    thickness too. The CAD worker keeps it only if it passes the discriminative rules."""
+    new = dict(base)
+    keys = rng.choice([("width",), ("length",), ("width", "length")])
+    for k in keys:
+        factor = rng.uniform(0.15, 0.40) * rng.choice((-1, 1))
+        new[k] = _q(base[k] * (1 + factor))
+    if rng.random() < 0.3:
+        new["hole_diameter"] = _q(base["hole_diameter"] + rng.choice((-1, 1)) * rng.uniform(1, 2))
+    if rng.random() < 0.3:
+        new["thickness"] = _q(base["thickness"] + rng.choice((-1, 1)) * rng.uniform(1, 4))
+    if has_slot(base) and rng.random() < 0.3:
+        new["slot_length"] = _q(base["slot_length"] + rng.choice((-1, 1)) * rng.uniform(2, 6))
+    return new if new != base and is_valid(new) else None
+
+
+def overrides(base: dict[str, float], edited: dict[str, float]) -> dict[str, float]:
+    """What build_part receives for an edit: only the parameters that changed."""
+    return {k: v for k, v in edited.items() if base.get(k) != v}
+
+
+def max_feature_shift(a: dict[str, float], b: dict[str, float]) -> float:
+    """Largest move of any critical feature between two parameter sets (the slot stays centred)."""
+    ca, cb = hole_centers(a), hole_centers(b)
+    return max(((ca[n][0] - cb[n][0]) ** 2 + (ca[n][1] - cb[n][1]) ** 2) ** 0.5 for n in ca)
+
+
 def hole_centers(params: dict[str, float]) -> dict[str, tuple[float, float]]:
     x = params["width"] / 2 - EDGE_OFFSET
     y = params["length"] / 2 - EDGE_OFFSET

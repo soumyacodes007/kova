@@ -79,6 +79,20 @@ def match(expected: list[FeatureMeasurement], measured: list[FeatureMeasurement]
     return missing + [f"unexpected:{n}" for n in extra]
 
 
+def iou(a: Part, b: Part) -> float:
+    """Solid intersection-over-union via CAD booleans."""
+    va, vb = a.volume, b.volume
+    inter = a.intersect(b)  # build123d 0.13 returns a ShapeList (possibly empty)
+    if inter is None:
+        vi = 0.0
+    elif hasattr(inter, "volume"):
+        vi = inter.volume
+    else:
+        vi = sum(s.volume for s in inter)
+    union = va + vb - vi
+    return vi / union if union > 0 else 0.0
+
+
 def self_test(params: dict[str, float], part: Part | None = None) -> dict:
     """The reference must be a single valid solid with exactly the specified geometry."""
     part = part or build(params)

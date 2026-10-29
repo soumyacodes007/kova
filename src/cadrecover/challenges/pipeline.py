@@ -87,6 +87,9 @@ def new_challenge(family: str = "plate", seed: int | None = None, *, scan_look: 
         shutil.rmtree(private_dir)
         raise ChallengeError(f"no drawing passed coverage in {max_attempts} attempts: {attempts}")
 
+    edits = _run("cad", "cadrecover.challenges.cad_worker", "edits", "--family", family,
+                 "--params", json.dumps(params), "--seed", str(seed + attempt), "--out", str(private_dir))["sets"]
+
     public_dir = paths.PUBLIC / challenge_id
     public_dir.mkdir(parents=True)
     png = public_dir / "drawing.png"
@@ -110,10 +113,20 @@ def new_challenge(family: str = "plate", seed: int | None = None, *, scan_look: 
         sets=[ParameterSet(
             index=0,
             values=params,
+            overrides={},
             reference=Artifact(path=f"{challenge_id}/s0.step", sha256=ref["sha256"], media_type="model/step"),
             measurements=[FeatureMeasurement(**m) for m in ref["measurements"]],
             volume_mm3=ref["volume"],
-        )],
+        )] + [ParameterSet(
+            index=e["index"],
+            values=e["values"],
+            overrides=e["overrides"],
+            reference=Artifact(path=f"{challenge_id}/s{e['index']}.step", sha256=e["sha256"], media_type="model/step"),
+            measurements=[FeatureMeasurement(**m) for m in e["measurements"]],
+            volume_mm3=e["volume"],
+            max_feature_shift_mm=e["max_feature_shift_mm"],
+            reference_self_iou=e["reference_self_iou"],
+        ) for e in edits],
         drawing_svg=Artifact(path=f"{challenge_id}/{svg.name}", sha256=_sha256(svg), media_type="image/svg+xml"),
         drawing_lint={"lint": drawing["lint"], "coverage": drawing["coverage"], "attempts": attempts},
     )

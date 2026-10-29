@@ -4,9 +4,15 @@ Reviewed 2026-10-29. Overall rating: **about 8/10**. The plan is honest and well
 
 ## Fix before building
 
-### 1. The scoring formula pays the cheat the pitch is about
+### 1. ✅ Resolved in PRD v2.1: the scoring formula paid the cheat the pitch is about
 
-`Q = 100·V·(0.50G + 0.20D + 0.30E)` weights editability at only 30%. A hard-coded model that ignores parameters still earns the full G and D at the drawing's own size, so it scores about **70**. The PRD's own checklist says it "scores well on geometry". If the quality floor is below 70, it gets paid.
+**Resolution:**
+- Every parameter set (the drawing's values plus 3 hidden edits) is scored for geometry and dimensions, averaged equally.
+- A missing or misplaced critical feature zeroes that set.
+- Hidden edits must move a critical feature by more than 5× tolerance and keep the reference's self-overlap below 0.85.
+- A constant model now tops out at 25 against a floor of 50. The PRD's worked table shows 100, 75, 25 and 0.
+
+**Original finding:** `Q = 100·V·(0.50G + 0.20D + 0.30E)` weighted editability at only 30%. A hard-coded model that ignores parameters still earns the full G and D at the drawing's own size, so it scores about **70**. The PRD's own checklist says it "scores well on geometry". If the quality floor is below 70, it gets paid.
 
 - **Fix:** score G and D at *every* parameter set (the drawing's values plus each hidden edit) and average them. A constant model then fails two-thirds of the geometry checks too.
 - **Alternative:** make E a multiplier, e.g. `Q = 100·V·(0.7G + 0.3D)·E`.

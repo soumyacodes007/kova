@@ -2,6 +2,8 @@
 
 Oct 29, 2026 · @Amlan
 
+> **v2.1 (Oct 29):** scoring now runs at every parameter set (the drawing's values plus 3 hidden edits, averaged equally). A missing or misplaced critical feature zeroes that set, and hidden edits must be discriminative. A constant model now tops out at 25, and the floor starts at 50. See "Quality score per task".
+
 ## Review of the first plan
 
 The first plan is technically strong and most of it stays. v2 keeps its engineering core and adds the pitch, a harder semiconductor demo family, on-chain engine audits, robustness pages, and a phase-by-phase build order with the backend first.
@@ -12,7 +14,7 @@ The first plan is technically strong and most of it stays. v2 keeps its engineer
 - **Async jobs** (202 + polling) for minute-long agent runs, with idempotent assignment IDs so a retry never pays for a second model run.
 - **Public vs private challenge records**, and retiring any challenge whose ground truth was revealed.
 - **Never running miner code inside the validator process**, plus an honest note that containers are not hostile-grade isolation.
-- **Scoring design:** validity gate, solid IoU plus two-way surface distance, independent feature checks, hidden edit tests, no speed bonus.
+- **Scoring design:** validity gate, solid IoU plus two-way surface distance, independent feature checks, hidden edit tests, no speed bonus. v2.1 applies all of these at every parameter set.
 - **Score to weights:** matched batches, minimum sample count, quality floor, explicit no-update state when nobody qualifies, identity = hotkey + registration, not UID.
 - **Chain honesty:** commit, reveal and incentive shown as separate states, with receipts and readback.
 - **UI truthfulness:** the viewer shows validator-rebuilt GLB files, one frozen shared transform, labeled replays, no invented events.
@@ -128,22 +130,46 @@ def build_part(params: dict[str, float]) -> Part:
     ...
 ```
 
-**Quality score per task** (kept from the first plan, calibrated with diagnostic miners before trusting rankings)
+**Quality score per task** (v2.1: every parameter set is scored the same way, so a model that ignores parameters can't win on overlap)
+
+Each task has four parameter sets: the drawing's own values (s₀) plus three hidden edits (s₁–s₃). The miner's code is rebuilt and scored at every set against the reference rebuilt at the same values, and the sets are averaged equally:
 
 ```latex
-Q = 100 \cdot V \cdot (0.50\,G + 0.20\,D + 0.30\,E)
+Q_s = V_s \cdot C_s \cdot (0.7\,G_s + 0.3\,D_s)
+\qquad
+Q = 100 \cdot \tfrac{1}{4} \textstyle\sum_{s=0}^{3} Q_s
 ```
 
-- V, validity (0 or 1): runs within limits, returns one valid positive-volume solid, correct entry point.
-- G, geometry: solid IoU against the reference, plus two-way surface distance as a diagnostic.
-- D, dimensions: measured hole count, diameters, positions and key lengths within published tolerances.
-- E, edit robustness: rebuild candidate and reference at 2–3 hidden values; compare overlap and critical features per test. One correct hole never compensates for a missing one.
+- V<sub>s</sub>, validity (0 or 1): at this set, the code runs within limits, returns one valid positive-volume solid, and uses the correct entry point.
+- C<sub>s</sub>, critical features (0 or 1): every critical feature is present and placed within tolerance at this set. A missing or misplaced critical feature **zeroes the set**. One correct hole never compensates for a missing one.
+- G<sub>s</sub>, geometry (0–1): solid IoU against the reference at this set. Two-way surface distance is recorded as a diagnostic only.
+- D<sub>s</sub>, dimensions (0–1): the fraction of measured dimensions within published tolerance at this set: hole diameters, key lengths, bolt-circle diameters.
+
+**Critical features** are fixed per family and published with the challenge. Examples: every hole's count, diameter and centre; the bolt circle; the bore; and each port's axis and bolt circle on the chamber. "Misplaced" means a feature's centre or axis is off by more than its positional tolerance.
+
+**Hidden edits must be discriminative.** The validator draws edit values (within the published ranges) until each of s₁–s₃ satisfies both rules:
+
+1. At least one critical feature moves by more than **5× its positional tolerance** compared with s₀.
+2. The reference's overlap with itself across the edit, IoU(reference at s₀, reference at sₖ), is **below 0.85**.
+
+Rule 1 means a model that ignores parameters leaves features misplaced at every hidden set, so C<sub>s</sub> = 0. Rule 2 means it can't hide behind a high overlap either.
+
+**Worked scores** (four sets, so each set is worth 25 points)
+
+| Candidate | s₀ (drawing) | s₁ | s₂ | s₃ | Q | Earns? (floor 50) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Correct parametric model | 1.0 | 1.0 | 1.0 | 1.0 | **100** | Yes |
+| Correct except one edit (a hole drifts at s₂) | 1.0 | 1.0 | 0 | 1.0 | **75** | Yes |
+| Constant model (ignores parameters; exact at s₀) | 1.0 | 0 | 0 | 0 | **25** | No |
+| Wrong hole size everywhere | 0 | 0 | 0 | 0 | **0** | No |
+
+A constant model therefore tops out at 25. The quality floor starts at **50**, halfway between that ceiling and a model that is right at two or more sets. Recalibrate it from measured baseline and diagnostic-miner results before trusting rankings. Phase 3's self-test must reproduce this table exactly.
 
 **From scores to weights**
 
 - Every eligible miner gets the same family mix per batch; timeouts score 0; validator outages are excluded for everyone.
 - Rolling mean over completed batches, with a minimum sample count before rewards.
-- Weight = max(0, mean Q − quality floor), normalized. Floor set from baseline results.
+- Weight = max(0, mean Q − quality floor), normalized. The floor starts at 50, which is above the constant-model ceiling of 25; recalibrate it from baseline results.
 - Nobody above the floor means no new weights and an alert, never an invented winner.
 - Identity is hotkey plus registration, so a recycled UID starts fresh.
 - Ordinary Yuma, mechanism 0; no speed bonus, only a deadline.
@@ -153,8 +179,8 @@ Q = 100 \cdot V \cdot (0.50\,G + 0.20\,D + 0.30\,E)
 | Attack | Defence |
 | --- | --- |
 | Crashing or empty code | Validity gate scores 0 |
-| Hard-coded model that ignores parameters | Hidden edit tests fail |
-| Right shape, wrong hole size | Feature checks fail |
+| Hard-coded model that ignores parameters | Discriminative edits misplace its features at every hidden set; it tops out at 25, below the floor of 50 |
+| Right shape, wrong hole size | The critical-feature check zeroes every set; it scores 0 |
 | Copying another miner | Answers go privately to the validator; engine hash committed first |
 | Memorizing past tasks | Fresh seed every round; revealed tasks retired |
 | Human solving by hand | Background audits re-run the committed engine |
@@ -221,16 +247,16 @@ The validator never trusts a miner's claims: it rebuilds every submission itself
 2. Export STEP to the drawing worker; draftwright renders multi-view, dimensioned SVG; rasterize to PNG.
 3. Run draftwright's lint for annotation coverage; reject drawings missing a dimension the task needs.
 4. Add scan look (slight blur, noise, rotation) for realism.
-5. Build reference solids at the hidden edit values; store all private artifacts outside the public root.
+5. Draw three hidden edit sets within the published ranges, and redraw any that fails the discriminative rules (a critical feature moves more than 5× its tolerance; reference self-overlap below 0.85). Build reference solids at those values, and store all private artifacts outside the public root.
 
 **Evaluation steps per submission**
 
 1. Rebuild the miner code in a fresh container at the drawing's parameters.
-2. Validity gate: one finite, positive-volume, valid solid within time and memory limits.
-3. Geometry: solid IoU with the reference using CAD booleans and published tolerances; two-way surface distance for the diagnostics view.
-4. Features: measure holes (count, diameter, centre), key lengths and bolt circles from the solid's faces.
-5. Edits: a fresh container per hidden parameter set; compare against the reference at the same values.
-6. Export STEP for download and GLB for the browser; store measurements, failed checks with world-space location, timings and hashes.
+2. Validity gate (V<sub>s</sub>): one finite, positive-volume, valid solid within time and memory limits.
+3. Critical features (C<sub>s</sub>): measure holes (count, diameter, centre), bolt circles, bores and port axes from the solid's faces. Any critical feature missing or misplaced makes this set score 0.
+4. Geometry and dimensions (G<sub>s</sub>, D<sub>s</sub>): solid IoU with the reference using CAD booleans; the fraction of key dimensions within tolerance; two-way surface distance for the diagnostics view.
+5. Repeat steps 1–4 at each of the three hidden edit sets, in a fresh container each time, against the reference at the same values. Q is the equal-weight mean over all four sets.
+6. Export STEP for download and GLB for the browser; store per-set measurements, failed checks with world-space location, timings and hashes.
 
 agentcad (Apache 2.0) offers STEP export, a dimensional report with cylinder diameters, and an A/B comparison view; try it in a 2-hour spike for checks 3–4 before writing them from scratch ([PyPI](https://pypi.org/project/agentcad/0.5.0/)).
 
@@ -330,8 +356,8 @@ make demo                      # localnet + validator + 5 miners + dashboard
 ```
 [round 42] task: vacuum chamber (hard) · seed hidden · deadline 180 s
 [round 42] 5 miners queried · 4 responded · 1 timeout
-  UID 7   valid · dims 18/18 · edits 3/3          Q 94
-  UID 12  valid · port 4 bolt circle rotated 15°  Q 61
+  UID 7   valid · sets 4/4 · dims 18/18             Q 94
+  UID 12  valid · s2: port 4 bolt circle rotated 15° → set zeroed   Q 71
   UID 3   crashed: forbidden import (diagnostic)   Q 0
 [round 42] weights submitted · block 4,213,887 · commit-reveal pending
 [audit]    UID 7 engine 9f3a…c21 re-run on hidden task · reproduced
@@ -459,7 +485,8 @@ Done when: one command produces a hidden plate and a drawing a person can read.
 - [ ] Sandboxed worker: no network, resource limits, fresh container per build
 - [ ] Validity gate, solid IoU, hole and dimension checks, hidden edit tests
 - [ ] STEP and GLB export; measurements and failed-check locations stored
-- [ ] Self-test: reference scores 100; wrong-hole and constant-output candidates fail the right checks
+- [ ] Self-test reproduces the worked-score table exactly: reference 100, one-edit-wrong 75, constant output 25, wrong hole 0
+- [ ] Edit sampler rejects non-discriminative edits, and logs the feature shift and the reference self-overlap for each accepted edit
 
 Done when: `cadrecover score my_part.py --task <id>` prints a correct score breakdown.
 
@@ -541,7 +568,9 @@ Before any demo, the scorer must reward the reference fully and punish every kno
 
 - [ ] Reference compared with itself passes every metric and every allowed edit
 - [ ] Wrong hole size, missing hole, moved hole, wrong units, mirrored part each fail the right check
-- [ ] Constant-output model scores well on geometry but loses edit points
+- [ ] Constant-output model scores exactly 25 (full marks at the drawing's set, 0 at each hidden edit), below the floor of 50
+- [ ] Model wrong at exactly one hidden edit scores 75
+- [ ] Every accepted hidden edit moves a critical feature more than 5× its tolerance and keeps reference self-overlap below 0.85
 - [ ] Empty, crashing or malformed output scores 0
 - [ ] Fresh unseen seeds work across every family shown in the demo
 
@@ -565,8 +594,8 @@ Before any demo, the scorer must reward the reference fully and punish every kno
 | Strategy 3: render-and-repair | Honest | measured | measured |
 | Strategy 2: extract-then-build | Honest | measured | measured |
 | Strategy 1: direct vision-to-CAD | Honest | measured | measured |
-| Constant output | Diagnostic | measured | expected near 0 |
-| Wrong holes | Diagnostic | measured | expected near 0 |
+| Constant output | Diagnostic | measured (expected 25) | 0 (below floor) |
+| Wrong holes | Diagnostic | measured (expected 0) | 0 |
 | Crash / forbidden import | Diagnostic | 0 | 0 |
 
 ## Demo script and judge Q&A

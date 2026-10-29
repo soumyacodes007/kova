@@ -1,0 +1,17 @@
+# CAD worker environment: builds reference solids and (Phase 3) rebuilds and
+# scores miner code. One exact build123d/OCP pair, the same for references and
+# submissions. Locked separately from the services and drawing environments.
+[project]
+name = "cadrecover-cad-worker"
+version = "0.1.0"
+requires-python = "==3.12.*"
+dependencies = [
+    "cadrecover",
+    "build123d==0.13.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+cadrecover = { path = "../..", editable = true }

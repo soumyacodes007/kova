@@ -8,15 +8,18 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Day 1: protocol drafts
 
-**Status:** not started
+**Status:** done (2026-10-29)
 
-- [ ] Job request and result envelope schemas in `protocol/` (source text, SHA-256, job ID, protocol version, entry point, hotkey signature)
+- [x] Job request and result envelope schemas in `protocol/jobs.py`:
+  - `JobRequest`: idempotent `job_id`, PublicChallenge, `drawing_url`, deadline
+  - `JobAccepted`, `JobStatus`
+  - `JobResult`: source capped at 64 KB, `source_sha256` validated against the source, entry point, model ID and strategy version recorded but never trusted
 
-**Done:**
-**Not done / gaps:**
-**Decisions:**
-**Interfaces changed:**
-**Blockers:**
+**Done:** evidence in `tests/services/test_protocol.py`: `test_job_result_hash_must_match_source`, `test_job_request_round_trips` (in the 10 passed).
+**Not done / gaps:** HTTP signing isn't in these bodies, by design: `bt.http_auth` headers carry it (Phase 4).
+**Decisions:** the signature lives in transport headers, not in the envelope. A valid signature proves the sender, not correctness.
+**Interfaces changed:** created v0.1.0.
+**Blockers:** none. **Ready for Phase 4:** use `fixtures/public/sample_plate/` as the practice task (`cli.py` already has `challenge new/show`, added by A; command list below).
 
 ---
 
@@ -101,3 +104,4 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | a/phase-0-protocol | Job envelopes; `cli.py` created with B's and A's commands (C owns the file; see `shared.md` Requests) | 10 passed | Phase 4: FastAPI miner + strategy 1 against the sample fixture |

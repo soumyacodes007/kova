@@ -1,0 +1,105 @@
+{
+ "protocol_version": "0.1.0",
+ "scoring_version": "2.1",
+ "challenge_id": "ch_df01e47027a76f04",
+ "family": "plate",
+ "created_at": "2026-10-29T04:04:53.976651Z",
+ "deadline_s": 180,
+ "units": "mm",
+ "frame": "Origin at the centre of the plate's bottom face. X runs along the width, Y along the length, Z up through the thickness.",
+ "entry_point": "build_part(params: dict[str, float]) -> build123d.Part",
+ "engine": {
+  "build123d": "0.13.0"
+ },
+ "parameters": [
+  {
+   "name": "width",
+   "description": "Overall plate size along X",
+   "unit": "mm",
+   "min": 80.0,
+   "max": 200.0
+  },
+  {
+   "name": "length",
+   "description": "Overall plate size along Y",
+   "unit": "mm",
+   "min": 50.0,
+   "max": 150.0
+  },
+  {
+   "name": "thickness",
+   "description": "Plate thickness along Z",
+   "unit": "mm",
+   "min": 4.0,
+   "max": 16.0
+  },
+  {
+   "name": "hole_diameter",
+   "description": "Diameter of the 4 through-holes",
+   "unit": "mm",
+   "min": 4.0,
+   "max": 10.0
+  },
+  {
+   "name": "slot_length",
+   "description": "Overall length of the centred through-slot (along X, end to end)",
+   "unit": "mm",
+   "min": 20.0,
+   "max": 60.0
+  },
+  {
+   "name": "slot_width",
+   "description": "Width of the centred through-slot",
+   "unit": "mm",
+   "min": 6.0,
+   "max": 12.0
+  }
+ ],
+ "edit_rules": [
+  "Each of the 4 holes stays 10 mm from the two nearest outer edges when width or length changes.",
+  "All 4 holes go through the full thickness and share one diameter (hole_diameter).",
+  "If present, the slot stays centred on the plate, runs along X and goes through the full thickness."
+ ],
+ "critical_features": [
+  {
+   "name": "hole_1",
+   "kind": "hole",
+   "description": "through-hole 10 mm from the nearest edges",
+   "size_tolerance_mm": 0.1,
+   "position_tolerance_mm": 0.1
+  },
+  {
+   "name": "hole_2",
+   "kind": "hole",
+   "description": "through-hole 10 mm from the nearest edges",
+   "size_tolerance_mm": 0.1,
+   "position_tolerance_mm": 0.1
+  },
+  {
+   "name": "hole_3",
+   "kind": "hole",
+   "description": "through-hole 10 mm from the nearest edges",
+   "size_tolerance_mm": 0.1,
+   "position_tolerance_mm": 0.1
+  },
+  {
+   "name": "hole_4",
+   "kind": "hole",
+   "description": "through-hole 10 mm from the nearest edges",
+   "size_tolerance_mm": 0.1,
+   "position_tolerance_mm": 0.1
+  },
+  {
+   "name": "slot",
+   "kind": "slot",
+   "description": "centred through-slot along X",
+   "size_tolerance_mm": 0.1,
+   "position_tolerance_mm": 0.1
+  }
+ ],
+ "drawing": {
+  "path": "ch_df01e47027a76f04/drawing.png",
+  "sha256": "f71cdd090eeb48bf2914f51cfae21393b4a4408c2ff96018ba34d30172044071",
+  "media_type": "image/png"
+ }
+}

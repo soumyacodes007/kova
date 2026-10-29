@@ -25,19 +25,47 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 4: Miner and signed jobs
 
-**Status:** not started · **Done when:** a signed job returns build123d code that scores above the floor (50).
+**Status:** done with **mock strategies** (2026-10-29); real VLM strategies wait for an API key · **Done when:** a signed job returns build123d code that scores above the floor (50).
 
-- [ ] FastAPI miner: POST /v1/jobs (202), GET /v1/jobs/{id}, GET /v1/health; `bt.http_auth` sign and verify; idempotent assignments
-- [ ] Strategy 1: direct vision-to-CAD; then strategy 2 (extract-then-build) and strategy 3 (render-and-repair)
-- [ ] Diagnostic miners: constant output (expect Q 25), wrong holes (expect 0), crash or forbidden import (expect 0), each labelled
-- [ ] Record model ID, strategy version, duration and budget per job
+- [x] **FastAPI miner** (`miner/server.py`, `cadrecover miner run`):
+  - `POST /v1/jobs` → 202, idempotent by `job_id` (a retry never re-runs the model)
+  - `GET /v1/jobs/{id}`, `GET /v1/health`
+  - every request is verified with `bt.http_auth.verify`: receiver binding, freshness, signature, replay via `InMemoryNonceStore`
+  - optional validator allowlist (403)
+  - the drawing's sha256 is checked against the challenge record
+  - **responses are signed with the miner hotkey** (`POST /v1/results/{job_id}` payload bound to the validator), and the validator verifies them in `validator/client.py`
+- [~] **Strategies:** per the user (2026-10-29), **mock/scripted for now**:
+  - `mock-oracle` (reads perfectly) and `mock-noisy` (seeded misreads: thickness ±1 mm 35% of the time, hole +0.5 mm 15%). Both are labelled `mock`, need `CADRECOVER_DEV_ORACLE=1`, and only work on the validator's machine.
+  - `claude-vision` is a slot that raises a clear error until it's implemented.
+  - **Not done:** real strategies 1 (direct vision-to-CAD), 2 (extract-then-build) and 3 (render-and-repair).
+- [x] **Diagnostic miners**, labelled `diagnostic`:
+  - `diag-constant` (expect 25)
+  - `diag-proportional` (expect 25)
+  - `diag-wrong-holes` (expect 0)
+  - `diag-crash` (forbidden import; expect 0)
+- [x] **Recorded per job:** `model_id`, `strategy_version` (`<strategy>/<version>`) and `duration_s` in JobResult. Budget isn't tracked; mocks have no cost.
 
 **Done-when evidence:**
-**Done:**
+- Round `run_47c501d8e4`: the real `mock-oracle` miner process (port 8101, wallet miner1) received a signed job, returned build123d source in a signed result, and the validator's sandboxed rebuild scored **Q 100 (100/100/100/100), above the floor of 50**.
+- Tests: `tests/services/test_miner_protocol.py` **8 passed**:
+  - round trip with a verified signed result
+  - an idempotent retry runs the model once
+  - a hash mismatch fails the job
+  - **unsigned, tampered, wrong-receiver and replay → 401**
+  - another validator can't read someone else's job → 404
+  - the allowlist → 403
+
 **Not done / gaps:**
+- **No real vision strategy.** It needs `ANTHROPIC_API_KEY`. Then implement `ClaudeVision` (read the claude-api docs first): send the drawing PNG, the public record and the edit rules; return `DRAWN` + `build_part(overrides)` source; render-and-repair loop for strategy 3.
+- **Job state is in memory**, so a miner restart forgets in-flight jobs. The validator treats that as a timeout.
+- **Mocks read ground truth.** They prove the loop, not miner skill. Never run them on testnet.
+
 **Decisions:**
-**Interfaces changed:**
-**Blockers:**
+- **Mock strategies are gated:** they need `CADRECOVER_DEV_ORACLE=1` and a local private record, and they're labelled `mock` in `/v1/health` and the leaderboard labels.
+- **Results are signed over the response body** as a `POST /v1/results/{job_id}` payload bound to the validator. That reuses `http_auth` without a custom scheme.
+
+**Interfaces changed:** none beyond protocol 0.2.0 (A).
+**Blockers:** the vision-model API key (user is sorting it out).
 
 ---
 
@@ -104,4 +132,5 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | c/phase-4-miner | Signed FastAPI miner, mock/diagnostic strategies, templates, `miner run`, `scripts/run-miners.sh` | services miner protocol 8 passed; live round Q 100 | Wire `ClaudeVision` when the API key arrives; Phase 8 after the Phase 6/7 gate |
 | 2026-10-29 | a/phase-0-protocol | Job envelopes; `cli.py` created with B's and A's commands (C owns the file; see `shared.md` Requests) | 10 passed | Phase 4: FastAPI miner + strategy 1 against the sample fixture |

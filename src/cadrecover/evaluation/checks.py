@@ -35,9 +35,26 @@ def validity(part: Part | None) -> tuple[bool, list[FailedCheck]]:
     return not problems, [FailedCheck(name="validity", message=p) for p in problems]
 
 
+THROUGH_AXIS = (0.0, 0.0, 1.0)  # through-features of the plate/flange/chuck families run along Z
+
+
+def offset(a: tuple, b: tuple, axis: tuple = THROUGH_AXIS) -> float:
+    """Distance between two feature centres measured across the through-axis.
+
+    A through-hole's position is where it pierces the part, not how high its
+    measured edge sits: a misread thickness moves the top face (and so the
+    measured centre) along Z, but must not count as a misplaced hole; it is
+    charged to geometry and dimensions instead. (Phase 7: features with their
+    own axes, like chamber ports, will pass their axis here.)
+    """
+    d = [a[i] - b[i] for i in range(3)]
+    along = sum(d[i] * axis[i] for i in range(3))
+    return math.sqrt(max(0.0, sum(x * x for x in d) - along * along))
+
+
 def _nearest(e: FeatureMeasurement, measured: list[FeatureMeasurement]) -> FeatureMeasurement | None:
     pool = [m for m in measured if m.kind == e.kind and m.center is not None]
-    return min(pool, key=lambda m: math.dist(m.center, e.center), default=None)
+    return min(pool, key=lambda m: offset(m.center, e.center), default=None)
 
 
 def critical(expected: list[FeatureMeasurement], measured: list[FeatureMeasurement],
@@ -49,7 +66,7 @@ def critical(expected: list[FeatureMeasurement], measured: list[FeatureMeasureme
         if m is None:
             failed.append(FailedCheck(name=f"{e.name}.missing", message=f"no {e.kind} found", location=e.center))
             continue
-        off = math.dist(m.center, e.center)
+        off = offset(m.center, e.center)
         if off > pos_tol:
             failed.append(FailedCheck(name=f"{e.name}.position",
                                       message=f"{e.kind} centre off by {off:.3f} mm (tolerance {pos_tol})",

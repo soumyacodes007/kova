@@ -52,3 +52,80 @@ def save_challenge(con: sqlite3.Connection, public: PublicChallenge, private_pat
 def get_public_challenge(con: sqlite3.Connection, challenge_id: str) -> PublicChallenge | None:
     row = con.execute("SELECT public_json FROM challenges WHERE challenge_id = ?", (challenge_id,)).fetchone()
     return PublicChallenge.model_validate_json(row["public_json"]) if row else None
+
+
+def retire_challenge(con: sqlite3.Connection, challenge_id: str, reason: str) -> None:
+    con.execute("UPDATE challenges SET status = 'retired', retired_at = ? WHERE challenge_id = ?", (_now(), challenge_id))
+    con.commit()
+    add_event(con, "challenge.retired", {"challenge_id": challenge_id, "reason": reason})
+
+
+# ---------------------------------------------------------------- rounds (agent B, phase 5)
+
+
+def upsert_miner(con: sqlite3.Connection, hotkey: str, registered_at_block: int, uid: int, label: str | None) -> None:
+    con.execute(
+        "INSERT INTO miners (hotkey, registered_at_block, uid, first_seen, label) VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT (hotkey, registered_at_block) DO UPDATE SET uid = excluded.uid, label = excluded.label",
+        (hotkey, registered_at_block, uid, _now(), label),
+    )
+    con.commit()
+
+
+def create_run(con: sqlite3.Connection, run_id: str, challenge_id: str, deadline_at: datetime) -> None:
+    con.execute("INSERT INTO runs (run_id, challenge_id, started_at, deadline_at, status) VALUES (?, ?, ?, ?, 'dispatching')",
+                (run_id, challenge_id, _now(), deadline_at.isoformat()))
+    con.commit()
+
+
+def set_run_status(con: sqlite3.Connection, run_id: str, status: str) -> None:
+    con.execute("UPDATE runs SET status = ? WHERE run_id = ?", (status, run_id))
+    con.commit()
+
+
+def add_assignment(con: sqlite3.Connection, job_id: str, run_id: str, hotkey: str, registered_at_block: int,
+                   uid: int) -> None:
+    con.execute("INSERT INTO assignments (job_id, run_id, miner_hotkey, registered_at_block, uid, status) "
+                "VALUES (?, ?, ?, ?, ?, 'pending')", (job_id, run_id, hotkey, registered_at_block, uid))
+    con.commit()
+
+
+def set_assignment(con: sqlite3.Connection, job_id: str, status: str) -> None:
+    con.execute("UPDATE assignments SET status = ?, sent_at = COALESCE(sent_at, ?) WHERE job_id = ?",
+                (status, _now(), job_id))
+    con.commit()
+
+
+def save_submission(con: sqlite3.Connection, job_id: str, envelope_json: str, source_sha256: str) -> None:
+    con.execute("INSERT OR IGNORE INTO submissions (job_id, received_at, source_sha256, envelope_json) VALUES (?, ?, ?, ?)",
+                (job_id, _now(), source_sha256, envelope_json))
+    con.commit()
+
+
+def save_evaluation(con: sqlite3.Connection, ev) -> None:
+    """Store an Evaluation and its four per-set rows. A validator outage has no quality (NULL)."""
+    quality = None if ev.failure_class == "validator_outage" else ev.quality
+    con.execute(
+        "INSERT OR REPLACE INTO evaluations (job_id, challenge_id, miner_hotkey, quality, failure_class, failure_reason, "
+        "evaluation_json, evaluated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (ev.job_id, ev.challenge_id, ev.miner_hotkey, quality, ev.failure_class, ev.failure_reason,
+         ev.model_dump_json(), _now()),
+    )
+    con.execute("DELETE FROM evaluation_sets WHERE job_id = ?", (ev.job_id,))
+    con.executemany(
+        "INSERT INTO evaluation_sets (job_id, set_index, valid, critical_ok, geometry, dimensions, q, failed_checks) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [(ev.job_id, s.index, int(s.valid), int(s.critical_ok), s.geometry, s.dimensions, s.q,
+          json.dumps([f.model_dump() for f in s.failed_checks])) for s in ev.sets],
+    )
+    con.commit()
+
+
+def save_weight_batch(con: sqlite3.Connection, batch, state: str, error: str | None = None) -> None:
+    con.execute("INSERT INTO weight_batches (batch_id, network, netuid, validator_hotkey, floor, batch_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (batch.batch_id, batch.network, batch.netuid, batch.validator_hotkey, batch.floor,
+                 batch.model_dump_json(), _now()))
+    con.execute("INSERT INTO receipts (batch_id, state, error, at) VALUES (?, ?, ?, ?)",
+                (batch.batch_id, state, error, _now()))
+    con.commit()

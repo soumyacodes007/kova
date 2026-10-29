@@ -2,6 +2,8 @@
 
 Oct 29, 2026 · @Amlan
 
+> **Protocol 0.2.0 (Oct 29):** `build_part` receives only the overrides: `{}` as drawn, changed keys at edits. Passing every value would have let a template skip reading the drawing. See "Miner contract".
+>
 > **v2.1 (Oct 29):** scoring now runs at every parameter set (the drawing's values plus 3 hidden edits, averaged equally). A missing or misplaced critical feature zeroes that set, and hidden edits must be discriminative. A constant model now tops out at 25, and the floor starts at 50. See "Quality score per task".
 
 ## Review of the first plan
@@ -120,15 +122,21 @@ Avoid freeform surfaces (turbine blades, car bodies): drawings describe them poo
 - **Public:** opaque ID, drawing PNG, units (mm), coordinate frame, required parameter names, allowed ranges, edit rules, deadline, scoring version.
 - **Private:** generator seed, reference solid, expected measurements, hidden edit values, reference results at those values. Never served to miners or the public artifact store until the round is retired.
 
-**Miner contract**
+**Miner contract** (protocol 0.2.0)
 
 ```python
 from build123d import Part
 
-def build_part(params: dict[str, float]) -> Part:
-    # Parameter names, units and frame come from the challenge.
+DRAWN = {...}  # every dimension the miner read off the drawing
+
+def build_part(overrides: dict[str, float]) -> Part:
+    # Called with {} for the part exactly as drawn, and with only the *changed*
+    # parameters at each hidden edit. Everything else comes from DRAWN.
+    p = {**DRAWN, **overrides}
     ...
 ```
+
+Why only overrides? If the validator passed *every* value at every set, a template that combined them with the published edit rules would score 100 without ever reading the drawing. With overrides only, the drawing's own values must be read correctly, *and* the model must respond correctly to edits. Parameter names, ranges, units, the frame and the edit rules still come from the public record.
 
 **Quality score per task** (v2.1: every parameter set is scored the same way, so a model that ignores parameters can't win on overlap)
 

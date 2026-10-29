@@ -6,8 +6,9 @@ Everyone reads this file at the start of every session and updates it when a gat
 
 | Phase | Owner | Status | Done-when check passed? (date, by) |
 | --- | --- | --- | --- |
-| 1 Setup and environments | B | not started | |
-| 2 Challenges and drawings | A | not started | |
+| 0 Protocol drafts (day 1) | A, B, C | done | 2026-10-29: 10 contract tests passed |
+| 1 Setup and environments | B | done | 2026-10-29: `check-envs.sh` all 3 OK; heartbeat 23 → 33 producing |
+| 2 Challenges and drawings | A | done | 2026-10-29: `cadrecover challenge new` → readable drawing, coverage ok, lint 1.0 |
 | 3 Evaluator and sandbox | A | not started | |
 | 4 Miner and signed jobs | C | not started | |
 | 5 Validator rounds and storage | B | not started | |
@@ -25,23 +26,28 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 
 | Contract | Owner | Version | Consumers | Notes |
 | --- | --- | --- | --- | --- |
-| Public challenge record | A | — | C (miner), B (validator) | PRD §Mechanism "Each challenge has two records" |
-| Private challenge record | A | — | B (validator), A (evaluator) | never served to miners |
-| Job request and result envelope | C | — | B (validator) | signed with `bt.http_auth`; 202 + polling |
-| Evaluation record (per set and total) | A | — | B (aggregation), C (API) | per-set V, C, G, D; Q |
-| Weight batch and receipt | B | — | C (API, pages) | commit, reveal and incentive as separate states |
+| Public challenge record | A | 0.1.0 | C (miner), B (validator) | `protocol/challenge.py` `PublicChallenge`: names + ranges, never values |
+| Private challenge record | A | 0.1.0 | B (validator), A (evaluator) | `PrivateChallenge`; `sets[0]` = drawing, hidden edits appended in phase 3 |
+| Job request and result envelope | C | 0.1.0 | B (validator) | `protocol/jobs.py`; signing via `bt.http_auth` headers |
+| Evaluation record (per set and total) | A | 0.1.0 | B (aggregation), C (API) | `protocol/evaluation.py`; the formula is `task_quality()`, `QUALITY_FLOOR = 50` |
+| Weight batch and receipt | B | 0.1.0 | C (API, pages) | `protocol/weights.py` |
 
 Change log (newest first): `date · contract · old → new version · what changed · who must update`
+- 2026-10-29 · all contracts · — → 0.1.0 · created · —
 
 ## Handoffs
 
 | Date | From → to | What | Where / how to use |
 | --- | --- | --- | --- |
+| 2026-10-29 | A → C | Practice challenge (retired, known seed) | `fixtures/public/sample_plate/` (challenge.json + drawing.png). Build your miner against it; never score it. |
+| 2026-10-29 | A → B | Challenge creation for the scheduler | `cadrecover.challenges.pipeline.new_challenge(family="plate")` returns public facts; private record at `runtime/private/<id>/private.json` |
+| 2026-10-29 | B → all | Envs, DB, paths | `make envs`, `make test`; `cadrecover.paths` (everything under `~/.cadrecover`); `cadrecover.storage.db.connect()` |
 
 ## Requests (change in a file you don't own)
 
 | Date | From → owner | File | Request | Status |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | A, B → C | `src/cadrecover/cli.py` | Created the file with `setup wallets`, `chain heartbeat` (B) and `challenge new/show` (A) before Phase 8. C owns it from here; restyle freely, but keep the commands working. | done; logged |
 
 ## Blockers
 
@@ -52,6 +58,10 @@ Change log (newest first): `date · contract · old → new version · what chan
 
 | Date | Decision | Why | Affects |
 | --- | --- | --- | --- |
+| 2026-10-29 | Retire any challenge whose seed or values were exposed (`ch_51b40eea12677918`, `ch_df01e47027a76f04`) | Ground truth of an exposed challenge is reproducible | B (scheduler must only use `status = 'active'`) |
+| 2026-10-29 | Publish only the drawing PNG; draftwright's SVG stays private | SVG geometry is machine-readable and would bypass reading the drawing | A, C |
+| 2026-10-29 | Drawing coverage = draftwright's ledger all `placed` + every required value in a rendered label; otherwise resample with the next seed | Text in the SVG is converted to outlines, so it can't be searched | A |
+| 2026-10-29 | Envs and runtime state in `~/.cadrecover` (WSL filesystem); drawing env on Python 3.13 / build123d 0.11; CAD env build123d 0.13 | SQLite WAL is unsafe on `/mnt/c`; draftwright's pins | all |
 | 2026-10-29 | Scoring v2.1: score every parameter set (s₀ + 3 hidden edits, equal weight); a missing or misplaced critical feature zeroes the set; hidden edits must be discriminative (feature shift > 5× tolerance, reference self-IoU < 0.85); floor starts at 50 | The old formula paid a constant model ~70 | A (evaluator), B (aggregation floor), C (API and pages show per-set results) |
 
 ## Open questions (from REVIEW.md)

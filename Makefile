@@ -3,7 +3,7 @@ HOME_DIR ?= $(HOME)/.cadrecover
 ENVS     := $(HOME_DIR)/envs
 UVX      := UV_LINK_MODE=copy uv
 
-.PHONY: envs check-envs localnet localnet-down wallets heartbeat test
+.PHONY: envs check-envs localnet localnet-down wallets heartbeat test challenge
 
 envs:  ## create/refresh the three locked environments
 	UV_PROJECT_ENVIRONMENT=$(ENVS)/services $(UVX) sync --extra services --python 3.12
@@ -25,5 +25,10 @@ wallets:  ## dev wallets (local/test only)
 heartbeat:  ## local chain produces blocks
 	$(ENVS)/services/bin/cadrecover chain heartbeat --network local
 
-test:
-	$(ENVS)/services/bin/python -m pytest -q tests
+test:  ## each environment runs its own suite
+	$(ENVS)/services/bin/python -m pytest -q tests/services
+	$(ENVS)/cad/bin/python -m pytest -q tests/cad
+	$(ENVS)/drawing/bin/python -m pytest -q tests/drawing
+
+challenge:  ## phase 2 done-when: one hidden plate + its drawing
+	$(ENVS)/services/bin/cadrecover challenge new --family plate

@@ -8,20 +8,40 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 1: Setup and environments (unblocks everyone; do first)
 
-**Status:** not started · **Done when:** every environment imports its libraries and the local chain produces blocks.
+**Status:** done (2026-10-29) · **Done when:** every environment imports its libraries and the local chain produces blocks.
 
-- [ ] WSL or Linux, uv, Python 3.12; three locked environments (services, drawing worker, CAD worker), with exact versions pinned
-- [ ] Docker Compose skeleton
-- [ ] SQLite (WAL) schema: runs, assignments, submissions, evaluations (per set), events, weight batches, receipts, audits
-- [ ] Local subtensor running; wallets for the owner, the validator and each miner, kept out of git
-- [ ] `runtime/` folder for private challenge records and secrets (gitignored)
+- [x] Three locked environments (`make envs`), each with its own `uv.lock`; the venvs live in `~/.cadrecover/envs/`:
+  - **services:** root `pyproject.toml` + `uv.lock`, extra `services`. Python 3.12.3, bittensor 11.3.0, FastAPI 0.162, pydantic 2.14.
+  - **cad:** `images/cad-worker/`. Python 3.12.3, build123d **0.13.0**, cadquery-ocp-novtk 8.0.1.1.
+  - **drawing:** `images/drawing-worker/`. Python **3.13.12**, draftwright 0.4.35, build123d **0.11.1**, PyMuPDF 2.0.
+- [x] Docker Compose skeleton (`compose.yaml`): `localnet` on 127.0.0.1:9944/9945, with later services listed by phase and owner
+- [x] SQLite (WAL) schema (`storage/schema.sql`, `storage/db.py`): challenges, miners (hotkey + registration block), runs, assignments (UNIQUE run + hotkey), submissions, evaluations, evaluation_sets, events (SSE cursor), weight_batches, receipts, commitments, audits
+- [x] Local subtensor running (`docker compose up -d localnet`, image `subtensor-localnet:devnet`). Wallets for owner, validator and miner1–5 in `~/.cadrecover/wallets/` (0700), mnemonics in `MNEMONICS.local-dev.txt` (0600). Nothing in git.
+- [x] Runtime folders outside the repo: `~/.cadrecover/runtime/` (DB + `private/` 0700) and `~/.cadrecover/artifacts/public/` (`paths.py`)
 
 **Done-when evidence:**
-**Done:**
+- `bash scripts/check-envs.sh`:
+  - services: `bittensor 11.3.0 | fastapi 0.162.0 | pydantic 2.14.1 | protocol 0.1.0`
+  - cad: `python 3.12.3 | build123d 0.13.0 | volume 174.867 | step 19022 B` (builds and exports a solid)
+  - drawing: `python 3.13.12 | build123d 0.11.1 | draftwright 0.4.35 | pymupdf 2.0`
+- `cadrecover chain heartbeat --network local` → `{"first": 23, "second": 33, "producing": true, "spec_version": 484}`
+- `cadrecover setup wallets` printed 7 coldkey/hotkey pairs
+- `tests/services/test_storage.py` → WAL on, all tables present, challenge round trip, idempotent reconnect
+
 **Not done / gaps:**
+- **Testnet funding/registration not started.** It's listed under Phase 6; ask the organizers early.
+- **Localnet runtime is spec 484** (devnet image); mainnet is 486. That's fine for the loop, but don't claim mainnet behaviour from localnet.
+- **Dev wallets have no password**, by design for unattended local runs. Never fund them on mainnet.
+- **Only `localnet` runs in Compose for now;** the other services are commented placeholders.
+- **No Postgres,** as the PRD allows (SQLite WAL on one host).
+
 **Decisions:**
-**Interfaces changed:**
-**Blockers:**
+- Envs and runtime state live in `~/.cadrecover` on the WSL filesystem: SQLite WAL is unreliable on `/mnt/c`, and ground truth stays outside the repo.
+- The drawing env runs Python 3.13, because draftwright needs it for build123d 0.11 (on 3.12 it pins <0.11). The CAD env stays on build123d 0.13; the two exchange STEP files.
+- **Tests are split per env:** `tests/services`, `tests/cad`, `tests/drawing`, all run by `make test`.
+
+**Interfaces changed:** `protocol/weights.py` v0.1.0 (WeightBatch, WeightReceipt, MinerIdentity).
+**Blockers:** none.
 
 ---
 
@@ -67,3 +87,4 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | b/phase-1-setup | 3 envs + locks, compose localnet, SQLite schema, wallets, CLI `setup wallets` / `chain heartbeat`, Makefile | services 12 passed (at merge), heartbeat producing | Phase 5 scheduler against stubs; start testnet funding |

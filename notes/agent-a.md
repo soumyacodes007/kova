@@ -81,20 +81,47 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 3: Evaluator and sandbox
 
-**Status:** not started · **Done when:** `cadrecover score my_part.py --task <id>` prints a correct score breakdown.
+**Status:** done (2026-10-29) · **Done when:** `cadrecover score my_part.py --task <id>` prints a correct score breakdown.
 
-- [ ] Sandboxed worker: no network, resource limits, a fresh container per build
-- [ ] Scoring at every parameter set (s₀ + 3 hidden edits): V_s, C_s (critical features), G_s (solid IoU), D_s (dimensions); Q = mean
-- [ ] Discriminative edit sampler: a critical feature moves more than 5× tolerance, reference self-IoU below 0.85; redraw otherwise; log both numbers
-- [ ] STEP and GLB export; per-set measurements and failed-check locations stored
-- [ ] **Self-test reproduces exactly: reference 100 · one-edit-wrong 75 · constant 25 · wrong hole 0**
+- [x] **Sandboxed worker** (`execution/sandbox.py`, `images/cad-worker/Dockerfile` + `sandbox_runner.py`):
+  - image `cadrecover-sandbox:build123d-0.13.0` (1.81 GB)
+  - **one fresh container per parameter set**
+  - `--network none --read-only --tmpfs /tmp`, 1 GB memory / no swap, 1 CPU, 64 PIDs, `--cap-drop ALL`, `no-new-privileges`, uid 1000, 60 s limit plus a host-side kill
+  - only the source and overrides are mounted (read-only), plus an empty `/out`
+  - the runner is standalone (build123d only). AST allowlist: `build123d, math, typing, dataclasses`; it forbids `eval/exec/open/__import__/…` and dunder attributes
+- [x] **Scoring at every parameter set** (`evaluation/checks.py`, `evaluation/evaluator.py` in the CAD env as a separate process that sees STEP files only, never code; `evaluation/score.py` orchestrates):
+  - V (one valid solid with finite, positive volume)
+  - C (holes and slot present and placed within 0.1 mm)
+  - G (IoU against the reference at the same values)
+  - D (fraction of dimensions within tolerance)
+  - Q from `protocol.task_quality`
+- [x] **Discriminative edit sampler** (`challenges/edits.py`, `cad_worker edits`): shift > 5 × 0.1 mm and self-IoU < 0.85, both logged per edit in the private record (`max_feature_shift_mm`, `reference_self_iou`). The pipeline now writes s1–s3 references.
+- [x] STEP from the sandbox, GLB per set (reference + candidate) via `--glb-dir` (rounds write to `runtime/runs/<run>/uid<N>/`). Per-set measurements and failed checks with world-space locations are stored in `evaluation_sets`.
+- [x] **Self-test reproduces exactly on real solids** (`tests/cad/test_evaluator.py`, plain and slotted plates): **100 · 75 · 25 · 0**
 
 **Done-when evidence:**
-**Done:**
+- On fresh challenge `ch_b0e73f6b786699d9`, `cadrecover score <file> --task <id>` for 5 sources (from `miner/templates.py`):
+  - **honest 100**
+  - **constant 25**: holes off by 12–21 mm at each edit
+  - **proportional 25**: IoU **0.99** at every edit, yet C = 0 (holes off by 2–4 mm)
+  - **wrong_holes 0**: size check
+  - **crash 0**: `invalid_source: forbidden import: socket`; failure class `miner`
+- Edits: shifts of 17.5 / 21.5 / 12.5 mm, self-IoU 0.719 / 0.759 / 0.503.
+- Tests: cad **18 passed**; services sandbox tests **4 passed** (build, forbidden import, timeout, `BLOCKED` network).
+
 **Not done / gaps:**
+- **Containers are not hostile-grade isolation** (shared kernel). Mainnet needs disposable worker VMs.
+- **~2–3 s per container × 4 sets + ~5 s of evaluation ≈ 15–20 s per submission, run sequentially.** Parallelise (cap 2–3 workers) before more miners.
+- **`offset()` assumes through-features run along Z.** True for plate, flange and chuck; the chamber's ports need per-feature axes (Phase 7).
+- GLBs are written but not yet served. That's Phase 8/9.
+
 **Decisions:**
-**Interfaces changed:**
-**Blockers:**
+- **Protocol 0.2.0:** `build_part(overrides)` gets `{}` at s₀ and only the changed keys at edits. Passing all values would let a template score without reading the drawing (found while building this phase).
+- **Evaluator fix (found in Phase 5's rounds):** critical positions are compared *across* the through-axis. A 1 mm thickness misread used to move the measured hole centres in Z and zero whole sets. It now costs only G and D. Regression test: `test_misread_thickness_costs_geometry_not_critical_features`. Confirmed live in round `run_dc8b4cfb6d`: mock-noisy's thickness misread scored 93.6 (sets 91 / 91 / 100 / 91).
+- **Sandbox infrastructure failures** (Docker or image missing, evaluator crash) are classed as `validator_outage` and excluded for everyone. Miner code failures are class `miner` and score 0.
+
+**Interfaces changed:** protocol 0.1.0 → **0.2.0**: `ParameterSet.overrides`; `PublicChallenge.entry_point` text (logged in `shared.md`).
+**Blockers:** none.
 
 ---
 
@@ -123,5 +150,6 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | a/phase-3-evaluator (+ fix on c/phase-4-miner) | Protocol 0.2.0, edit sampler, sandbox image + runner, evaluator, `cadrecover score`; through-axis position fix | cad 18, services sandbox 4 | Phase 7: flange family, auditor, held-out family |
 | 2026-10-29 | a/phase-2-plate | Plate family, measurement, CAD/drawing workers, pipeline, CLI `challenge new/show`, fixture | services 16, cad 4, drawing 2: all passed | Phase 3: sandboxed rebuilds, discriminative edit sampler, IoU/D checks, the 100/75/25/0 self-test on real solids |
 | 2026-10-29 | a/phase-0-protocol | Protocol schemas + contract tests | 10 passed | Phase 2 |

@@ -63,6 +63,18 @@ def test_wrong_hole_size_scores_0(task):
     assert _score(sets, refs, cands) == pytest.approx(0.0)
 
 
+def test_misread_thickness_costs_geometry_not_critical_features(task):
+    """Regression: a 1 mm thickness misread moved the measured hole centres in Z and zeroed whole sets."""
+    sets, refs, _ = task
+    thick = [plate.build(dict(v, thickness=v["thickness"] - 1.0)) for v in sets]
+    scores = [score_set(i, v, refs[i], c, plate.expected_features(v), iou_fn=plate.iou,
+                        size_tol=spec.SIZE_TOL, pos_tol=spec.POSITION_TOL)
+              for i, (v, c) in enumerate(zip(sets, thick))]
+    assert all(s.valid and s.critical_ok for s in scores), [f.name for s in scores for f in s.failed_checks]
+    assert all(s.geometry < 0.95 and s.dimensions < 1.0 for s in scores)  # still penalised
+    assert 50 < task_quality(scores) < 100
+
+
 def test_missing_solid_is_invalid(task):
     sets, refs, _ = task
     s = score_set(0, sets[0], refs[0], None, plate.expected_features(sets[0]), iou_fn=plate.iou,

@@ -88,6 +88,15 @@ def _set_weights(con, batch: WeightBatch, network: str, run_id: str, reveal_wait
         time.sleep(REVEAL_POLL_S)
 
 
+def _holds_audit_zeroed_weight(con, miners, network: str) -> bool:
+    """True when the validator's on-chain row still gives weight to a miner whose latest audit failed."""
+    from cadrecover.chain import neurons
+
+    zeroed = db.failed_audits(con)
+    held = neurons.read_weights(network)["revealed_row"]
+    return any(w > 0 and m.uid == u and m.hotkey in zeroed for u, w in held.items() for m in miners)
+
+
 def _zero_eval(challenge_id: str, job_id: str, hotkey: str, sets, reason: str) -> Evaluation:
     return Evaluation(challenge_id=challenge_id, job_id=job_id, miner_hotkey=hotkey, failure_class="miner",
                       failure_reason=reason,
@@ -198,6 +207,13 @@ def run_round(*, family: str = "plate", deadline_s: int = 180, network: str = "l
         current = {(m.hotkey, m.registered_at_block) for m in miners} if on_chain else None
         table = aggregate.standings(con, current=current, zeroed=db.failed_audits(con))
         weights = {s.uid: s.weight for s in table if s.weight > 0}
+        revoke = on_chain and not weights and _holds_audit_zeroed_weight(con, miners, network)
+        if revoke:  # "no update" would leave a failed miner's old weight on chain: abstain with a self-weight
+            from cadrecover.chain import bootstrap
+
+            weights = {bootstrap.load_state()["neurons"]["validator"]["uid"]: 1.0}
+            log("[round] an audit-failed miner still holds on-chain weight and nobody qualifies: "
+                f"revoking it with a self-weight {weights}")
         batch = WeightBatch(batch_id="wb_" + uuid.uuid4().hex[:10], network=network, netuid=netuid,
                             validator_hotkey=wallet.hotkey.ss58_address, floor=QUALITY_FLOOR,
                             mean_quality={s.hotkey: round(s.mean_quality, 3) for s in table},
@@ -205,7 +221,7 @@ def run_round(*, family: str = "plate", deadline_s: int = 180, network: str = "l
         state = "proposed" if weights else "skipped_no_qualifier"
         db.save_weight_batch(con, batch, state)
         db.add_event(con, "weights.proposed" if weights else "weights.no_update", {"batch_id": batch.batch_id,
-                     "weights": weights}, run_id)
+                     "weights": weights, "revokes_audit_failed": revoke}, run_id)
         log(f"[round] weights {state}: {weights or 'nobody above the floor (no update)'}")
         if on_chain and weights:
             state = _set_weights(con, batch, network, run_id, reveal_wait_s, log)

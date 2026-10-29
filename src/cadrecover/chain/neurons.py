@@ -93,7 +93,8 @@ def submit_weights(weights: dict[int, float], network: str = "local", version_ke
             return {"state": "failed", "error": f"{getattr(res.error, 'code', '')} {getattr(res.error, 'message', res.error)}",
                     "block": block}
         events = [e.get("event_id") for e in res.events or []]
-        committed = any("Commit" in (e or "") for e in events) or bool(sub.read("commit_reveal_enabled", netuid=netuid))
+        # what landed, from the chain's own events (not the hyperparameter): a commit or a plain set
+        committed = any("Commit" in (e or "") for e in events)
         return {"state": "committed" if committed else "submitted", "block": block,
                 "extrinsic": getattr(res, "extrinsic_id", None) or getattr(res, "block_hash", None),
                 "events": events}

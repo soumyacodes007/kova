@@ -66,7 +66,7 @@ def _set_weights(con, batch: WeightBatch, network: str, run_id: str, reveal_wait
     db.add_receipt(con, batch.batch_id, r["state"], block=r.get("block"), extrinsic=r.get("extrinsic"),
                    error=r.get("error"))
     db.add_event(con, f"weights.{r['state']}", {"batch_id": batch.batch_id, "block": r.get("block"),
-                                               "error": r.get("error")}, run_id)
+                                               "error": r.get("error"), "chain_events": r.get("events")}, run_id)
     log(f"[chain] weights {r['state']} at block {r.get('block')}" + (f": {r['error']}" if r.get("error") else ""))
     if r["state"] == "failed":
         return "failed"

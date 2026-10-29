@@ -71,19 +71,27 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 8: API, CLI and terminal demo
 
-**Status:** not started · **Done when (BACKEND GATE):** `make demo` runs a full round, a weight submission and an audit end to end, visible in the terminal alone.
+**Status:** done · **Done when (BACKEND GATE):** `make demo` runs a full round, a weight submission and an audit end to end, visible in the terminal alone.
 
-- [ ] FastAPI read API and SSE with resumable event IDs; TypeScript types generated from OpenAPI
-- [ ] CLI: `doctor`, `task sample`, `score` (wraps A's evaluator), `miner run`, `validator run`, `status`
-- [ ] Rich logs, 3-pane tmux layout, `make demo` starts everything
-- [ ] Gate passed → mark it in `shared.md` with evidence
+- [x] FastAPI read API and SSE with resumable event IDs; TypeScript types generated from OpenAPI (`src/cadrecover/api/`, `docs/api/openapi.json`, `apps/web/lib/api-types.ts`; regenerate with `scripts/export-openapi.py`, `--check` for staleness)
+- [x] CLI: `doctor`, `task sample`, `score`, `miner run`, `validator run`, `status` (+ `events --follow`, `api serve`, `auditor run`)
+- [x] Rich logs, 3-pane tmux layout, `make demo` starts everything (`DEMO_HEADLESS=1` for a scripted run; `make demo-down`)
+- [x] Gate passed → marked in `shared.md` with evidence
 
-**Done-when evidence:**
-**Done:**
+**Done-when evidence:** from a clean state (DB and `chain.json` moved to `~/.cadrecover/backup-pre-gate-20261029-0911`, localnet container recreated): `DEMO_HEADLESS=1 make demo` → localnet blocks 12 → 21; bootstrap netuid 2, commit-reveal on; 5 engine images; 5 miners (axons + engine commitments); `doctor` all checks passed; 2 rounds (oracle 100, noisy 100, constant 25, wrong-holes 0, crash 0); weights `{2: 0.5, 3: 0.5}` committed at block 1584, revealed at 1595; audit uid 3 engine `73cf808a1f19` live 100.0 audit 90.3 (100, 88, 83) → PASS; `chain weights` block 2515 `{2: 0.5, 3: 0.5}`; `backend gate check: ok round run_6b6a61efe4 done | weights revealed | audits uid 3 pass` → `demo ok`, EXIT=0. Full log: `~/.cadrecover/runtime/logs/gate-demo.log`.
+
+**Done:** API endpoints status, runs, run detail (per-set V/C/G/D/Q, failed checks, GLB/drawing URLs), leaderboard, miners, weights with every receipt, commitments, audits, public challenges, events + SSE stream (`Last-Event-ID` resume, keep-alives); read-only DB; CORS localhost:3000. Tests: `tests/services/test_api.py` (54: shapes, no private leak, 13 path-traversal attempts, SSE resume, OpenAPI freshness), `tests/services/test_cli.py`.
+
 **Not done / gaps:**
-**Decisions:**
-**Interfaces changed:**
-**Blockers:**
+- No endpoint for miner source or STEP download (Phase 11 needs STEP).
+- Chain probe in `/v1/status` only for `local`.
+- Miner logs are empty (server logs at warning); `events --follow` replaces them in the tmux pane.
+- Audits take 3–10 min, so `make demo` is ~15 min end to end.
+- Honest miners are mocks until claude-vision is wired.
+
+**Decisions:** while a challenge is active the API withholds per-set values, failed-check text and reference GLBs (they leak answers); all shown once retired. Leaderboard `latest_batch_weight` is what the newest batch gave; use it for on-chain claims.
+**Interfaces changed:** new read API (OpenAPI is the contract for the frontend).
+**Blockers:** none.
 
 ---
 
@@ -132,5 +140,6 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | b/phase-6-chain | Read API + SSE + TS types, doctor/status/task sample/events/api serve, rich logs, `make demo` | services 138 passed; gate run EXIT=0 | Wire claude-vision; Phase 9 arena on the real API |
 | 2026-10-29 | c/phase-4-miner | Signed FastAPI miner, mock/diagnostic strategies, templates, `miner run`, `scripts/run-miners.sh` | services miner protocol 8 passed; live round Q 100 | Wire `ClaudeVision` when the API key arrives; Phase 8 after the Phase 6/7 gate |
 | 2026-10-29 | a/phase-0-protocol | Job envelopes; `cli.py` created with B's and A's commands (C owns the file; see `shared.md` Requests) | 10 passed | Phase 4: FastAPI miner + strategy 1 against the sample fixture |

@@ -96,7 +96,7 @@ def test_drawing_hash_mismatch_fails_the_job(wallets):
     _run(go())
 
 
-@pytest.mark.parametrize("attack", ["unsigned", "tampered", "wrong_receiver", "replay"])
+@pytest.mark.parametrize("attack", ["unsigned", "tampered", "wrong_receiver", "replay", "stale", "oversized"])
 def test_bad_requests_are_rejected(wallets, attack):
     validator, miner, other = wallets
     app = create_app(miner, CountingStrategy(), fetch_drawing=_fetch)
@@ -105,15 +105,22 @@ def test_bad_requests_are_rejected(wallets, attack):
     async def go():
         async with _client(app) as c:
             receiver = other.hotkey.ss58_address if attack == "wrong_receiver" else miner.hotkey.ss58_address
-            headers = bt.http_auth.sign(validator, method="POST", path="/v1/jobs", body=body, receiver_ss58=receiver)
+            payload = body
+            if attack == "oversized":  # signed correctly, but larger than MAX_REQUEST_BYTES
+                payload = body[:-1] + b',"padding":"' + b"x" * 300_000 + b'"}'
+            sent = payload
+            nonce = (int(datetime.now(timezone.utc).timestamp()) - 120) * 10**9 if attack == "stale" else None
+            headers = bt.http_auth.sign(validator, method="POST", path="/v1/jobs", body=payload,
+                                        receiver_ss58=receiver, nonce_ns=nonce)
             if attack == "unsigned":
                 headers = {}
-            sent = body.replace(b"job-", b"JOB-") if attack == "tampered" else body
+            if attack == "tampered":
+                sent = payload.replace(b"job-", b"JOB-")
             r = await c.post("/v1/jobs", content=sent, headers=headers)
             if attack == "replay":
                 assert r.status_code == 202
                 r = await c.post("/v1/jobs", content=sent, headers=headers)
-            assert r.status_code == 401, (attack, r.text)
+            assert r.status_code == (413 if attack == "oversized" else 401), (attack, r.text)
     _run(go())
 
 

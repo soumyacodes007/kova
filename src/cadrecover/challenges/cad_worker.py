@@ -18,9 +18,9 @@ from pathlib import Path
 
 from build123d import export_step
 
-from cadrecover.challenges.families import plate, plate_spec
+from cadrecover.challenges.families import flange, flange_spec, plate, plate_spec
 
-FAMILIES = {"plate": (plate_spec, plate)}
+FAMILIES = {"plate": (plate_spec, plate), "flange": (flange_spec, flange)}
 
 
 def _sha256(path: Path) -> str:

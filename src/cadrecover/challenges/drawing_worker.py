@@ -1,10 +1,11 @@
 """Drawing worker entry point (drawing env: draftwright, AGPL; validator-side only).
 
   python -m cadrecover.challenges.drawing_worker draw --step REF.step --out DIR \
-      --title T --number N --require '["120", "⌀6.5", ...]' --seed S [--clean]
+      --title T --number N --require '["120", "⌀6.5", ...]' [--waive '["holes:bore.through"]'] --seed S [--clean]
 
 Reads the reference STEP, draws it with draftwright, and checks coverage:
-1. draftwright's own requirement ledger: every recognised requirement is placed
+1. draftwright's own requirement ledger: every recognised requirement is placed, except the few a
+   family explicitly waives (draftwright false negatives on a centred bore; each is still reported)
 2. the task's required values each appear in a rendered dimension/callout label
 Then rasterizes the SVG to PNG and (unless --clean) adds a seeded scan look.
 Prints one JSON object; `coverage.ok` false means the caller must reject it.
@@ -36,17 +37,24 @@ def labels(dwg) -> list[str]:
     return out
 
 
-def coverage(dwg, required: list[str]) -> dict:
+def coverage(dwg, required: list[str], waive: list[str] | None = None) -> dict:
     report = dwg.report()
     reqs = (report.get("recognition") or {}).get("requirements") or []
-    unplaced = [f"{r.get('family')}:{r.get('parameter_id')} ({r.get('state')})" for r in reqs if r.get("state") != "placed"]
+    waive = set(waive or [])
+    unplaced, waived = [], []
+    for r in reqs:
+        if r.get("state") == "placed":
+            continue
+        entry = f"{r.get('family')}:{r.get('parameter_id')} ({r.get('state')})"
+        (waived if f"{r.get('family')}:{r.get('parameter_id')}" in waive else unplaced).append(entry)
     rendered = labels(dwg)
     tokens = set()
     for text in rendered:
+        text = text.replace("ø", "⌀")  # draftwright writes diameters as both "ø" and "⌀"
         tokens.add(text)
         tokens.update(text.replace("×", " ").replace("THRU", " ").split())
     missing = [want for want in required if want not in tokens]
-    return {"ok": not unplaced and not missing, "ledger_requirements": len(reqs), "unplaced": unplaced,
+    return {"ok": not unplaced and not missing, "ledger_requirements": len(reqs), "unplaced": unplaced, "waived": waived,
             "required": required, "missing_required": missing, "labels": rendered}
 
 
@@ -72,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--title", default="Part")
     d.add_argument("--number", default="DWG-0001")
     d.add_argument("--require", default="[]")
+    d.add_argument("--waive", default="[]", help="JSON list of ledger ids (family:parameter_id) a family may leave unplaced")
     d.add_argument("--seed", type=int, default=0)
     d.add_argument("--clean", action="store_true")
     a = p.parse_args(argv)
@@ -80,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     part = import_step(str(a.step))
     dwg = build_drawing(part, title=a.title, number=a.number)
     lint = dwg.lint_summary()
-    cov = coverage(dwg, json.loads(a.require))
+    cov = coverage(dwg, json.loads(a.require), json.loads(a.waive))
     svg = Path(dwg.export(str(a.out / "drawing"), formats=("svg",))["svg"])
     png = a.out / "drawing.png"
     pymupdf.open(str(svg))[0].get_pixmap(dpi=DPI).save(str(png))

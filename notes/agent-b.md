@@ -97,20 +97,39 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 6: Chain integration
 
-**Status:** not started · **Done when:** Phase 5 scores land on-chain as weights and read back correctly.
+**Status:** done (localnet; testnet waits for test TAO) · **Done when:** Phase 5 scores land on-chain as weights and read back correctly.
 
-- [ ] Register the subnet and neurons on the local node; miners publish endpoints with `bt.ServeAxon`; validator permit confirmed
-- [ ] Chain process: `bt.SetWeights` through plan → execute → readback; receipts and commit/reveal state stored
-- [ ] Engine commitments with `set_commitment`; read back per miner (confirm the v11 read API; REVIEW: `client.identity.commitment` unverified)
-- [ ] Testnet funding and registration started in parallel
-- [ ] Optional: test weight-setting and commit-reveal against mainnet chain rules with [TensorFork](https://github.com/soumyacodes007/tensorfork)
+- [x] Register the subnet and neurons on the local node; miners publish endpoints with `bt.ServeAxon`; validator permit confirmed: `cadrecover chain bootstrap` → netuid 2, validator uid 1, miner1–5 uids 2–6, permit True after an epoch; `serve-axon` ×5 → metagraph shows 5 axons
+- [x] Chain process: `bt.SetWeights` through plan → execute → readback; receipts and commit/reveal state stored (`receipts` table, one row per state)
+- [x] Engine commitments with `set_commitment`; read back per miner: the read is `sub.read("commitment", netuid=, hotkey_ss58=)` → `Commitment(block, data, fields)` (REVIEW's `client.identity.commitment` does not exist in v11)
+- [ ] Testnet funding and registration: started; registration cost read live = τ1.0, but owner/validator/miner coldkeys hold τ0 on testnet. **Blocked on test TAO** (owner coldkey `5HHKrbRMDmxMU8sEstz6bXLWq7LA1kgKwa7QaDC7UQuW7LMg`)
+- [ ] Optional: TensorFork run against mainnet rules (not done)
 
 **Done-when evidence:**
-**Done:**
+- `cadrecover validator run --deadline 90` → `[round] metagraph netuid 2: 5 miners serving an axon` … `uid 2 mock-oracle Q 100.0` … `weights proposed: {2: 1.0}` → `[chain] weights submitted at block 15596` → `[chain] read back at block 15596: {2: 1.0} (matches the batch)`; `cadrecover chain weights` → `revealed_row {"2": 1.0}` at block 15602.
+- Engine commitments: miner1–5 committed at blocks 17816–17864, each read back equal (`chain commit-engine` raises on mismatch).
+- Audit-failed revoke (agent run): swapped engine → audit fail → `revoking it with a self-weight {1: 1.0}` → submitted + read back at block 29321; honest engine restored → `{2: 1.0}` read back at block 32749.
+- Tests: `tests/services/test_chain_offline.py` (commitment encode/decode for every SDK shape, u16 readback tolerance, axon loopback mapping, audit pass rule, audit-zeroed and stale identities, audit-zeroed weight still on chain).
+
+**Done:** `chain/bootstrap.py` (idempotent: fund from //Alice, RegisterSubnet or recover ours, StartCall, burned_register, AddStake, drand check), `chain/neurons.py` (ServeAxon, metagraph discovery, SetWeights, readback), `chain/commitments.py`, `validator/round.py` (metagraph discovery when `chain.json` exists, `--static` keeps Phase 5 behaviour), `aggregate.standings(current=, zeroed=)`, db receipts/commitments/audits helpers, CLI `chain bootstrap|serve-axon|weights|commit-engine`.
+
 **Not done / gaps:**
+- Fresh localnet (gate run): the drand beacon was current, commit-reveal stayed **on**, and receipts show the real flow: `proposed → committed (block 1584) → revealed (block 1595)`, and `committed 3619 [TimelockedWeightsCommitted] → revealed 3629`. On the earlier long-running localnet the beacon stalled and bootstrap turned commit-reveal off (see Decisions).
+- Observed, not explained: the very first weight set on the fresh subnet (block 986) was readable in the same block, so it was most likely a plain set; its receipt said `committed` because the label then came from the hyperparameter. Fixed: the state now comes from the chain's own events (`TimelockedWeightsCommitted` → committed, otherwise submitted), logged with each `weights.*` event. State at 986 is pruned, so the cause can't be confirmed.
+- Earlier long-running localnet: commit-reveal off, receipts `proposed → submitted → revealed`. The committed state was shown once (`TimelockedWeightsCommitted` at block 14426, reveal round 33483222) but could not reveal. Testnet keeps commit-reveal on; `_set_weights` waits for the reveal and records `committed` then `revealed` — unverified until testnet.
+- A miner that only drops below the floor keeps its old on-chain row until someone else qualifies (only the audit-failed case is revoked).
+- The self-weight revoke puts the validator uid into `WeightBatch.weights`; consumers read the `revokes_audit_failed` event flag. A protocol field would be cleaner (shared contract; not changed).
+- Incentive (the third state) is not read back yet.
+
 **Decisions:**
-**Interfaces changed:**
-**Blockers:**
+- Localnet only: `bootstrap` measures the drand lag (`LastStoredRound` vs real quicknet round). This image's beacon is stalled (~1300 rounds behind, never advances), so timelocked commits expire unrevealed; bootstrap turns `commit_reveal_weights_enabled` off for our subnet and records why in `chain.json`.
+- BurnedRegister is forced through the MEV shield, which this single-node localnet never includes; on localnet only we submit the raw `burned_register` call. Testnet keeps the intent.
+- The chain rejects loopback axons: miners bind 127.0.0.1, advertise this host's LAN IP, and a same-host validator maps that IP back to 127.0.0.1 (same-machine demo only).
+- Commitments are hotkey-signed (`submit_call(..., signer="hotkey")`); payload `{"e": "sha256:…", "s": "strategy@version"}` ≤ 128 bytes Raw.
+- Admin calls retry through the "protected weights window" around each epoch.
+
+**Interfaces changed:** none in `protocol/`. New CLI commands (listed above).
+**Blockers:** test TAO for testnet.
 
 ---
 
@@ -118,5 +137,6 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | b/phase-6-chain | Bootstrap, ServeAxon, metagraph discovery, SetWeights + readback + receipts, engine commitments, audit-failed revoke, drand-stall handling | services 131 passed; live readbacks at blocks 15596, 29321, 32749 | Testnet once test TAO arrives; commit → reveal receipts there |
 | 2026-10-29 | c/phase-4-miner (B commit) | Validator round, signed client, static discovery, artifact server, aggregation, DB writers, `validator run` / `leaderboard` | aggregate 4 passed; 5 live rounds | Phase 6: register on localnet, metagraph discovery, `bt.SetWeights` with readback |
 | 2026-10-29 | b/phase-1-setup | 3 envs + locks, compose localnet, SQLite schema, wallets, CLI `setup wallets` / `chain heartbeat`, Makefile | services 12 passed (at merge), heartbeat producing | Phase 5 scheduler against stubs; start testnet funding |

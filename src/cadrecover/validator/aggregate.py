@@ -5,6 +5,7 @@
   outages (quality NULL) are excluded for everyone; timeouts and failures count as 0
 - an identity needs MIN_SAMPLES tasks before it can earn
 - weight = max(0, mean Q - floor), normalized; nobody above the floor -> no update
+- only identities registered now can earn (`current`); a failed engine audit zeroes a hotkey (`zeroed`)
 """
 
 from __future__ import annotations
@@ -31,7 +32,8 @@ class Standing:
 
 
 def standings(con: sqlite3.Connection, *, window: int = WINDOW, min_samples: int = MIN_SAMPLES,
-              floor: float = QUALITY_FLOOR) -> list[Standing]:
+              floor: float = QUALITY_FLOOR, current: set[tuple[str, int]] | None = None,
+              zeroed: set[str] | None = None) -> list[Standing]:
     rows = con.execute("""
         SELECT m.hotkey, m.registered_at_block, m.uid, m.label, e.quality
         FROM miners m
@@ -51,7 +53,8 @@ def standings(con: sqlite3.Connection, *, window: int = WINDOW, min_samples: int
     out = []
     for key, qs in per.items():
         mean = sum(qs) / len(qs)
-        eligible = len(qs) >= min_samples
+        eligible = (len(qs) >= min_samples and (current is None or key in current)
+                    and key[0] not in (zeroed or set()))
         out.append(Standing(key[0], key[1], meta[key][0], meta[key][1], len(qs), mean,
                             max(0.0, mean - floor) if eligible else 0.0))
     total = sum(s.above_floor for s in out)

@@ -84,3 +84,13 @@ def test_job_request_round_trips():
     req = JobRequest(job_id="j1", challenge=_public(), drawing_url="http://127.0.0.1:8080/ch_test/drawing.png",
                      deadline_at=datetime(2026, 10, 30, tzinfo=timezone.utc))
     assert JobRequest.model_validate_json(req.model_dump_json()) == req
+
+
+def test_oversized_source_is_rejected():
+    from pydantic import ValidationError
+
+    from cadrecover.protocol.jobs import MAX_SOURCE_BYTES, JobResult
+
+    with pytest.raises(ValidationError):
+        JobResult.for_source(job_id="j", challenge_id="c", source="#" * (MAX_SOURCE_BYTES + 1),
+                             model_id="m", strategy_version="0")

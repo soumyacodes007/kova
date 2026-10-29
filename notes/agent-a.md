@@ -127,22 +127,69 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 7: Families, audits, robustness
 
-**Status:** not started · **Done when:** diagnostic miners earn about 0, an honest audit passes, and a swapped engine fails.
+**Status:** done (flange; wafer chuck and chamber not started) · **Done when:** diagnostic miners earn about 0, an honest audit passes, and a swapped engine fails.
 
-- [ ] Flange family (passes its reference self-test first)
-- [ ] Wafer chuck *(stretch)*
-- [ ] Multi-port vacuum chamber *(stretch)*
-- [ ] Held-out or feature-composed family against template solvers (REVIEW #3)
-- [ ] Auditor: pull the committed engine image (needs B's Phase 6 commitments), run it on a hidden task, compare quality, zero the weight on failure
-- [ ] Audit pass rule defined and documented (REVIEW #5)
-- [ ] Verification checklist run; attack-chart numbers recorded from measurements
+- [x] Flange family (passes its reference self-test first): `tests/cad/test_flange_evaluator.py` on plain 6-bolt, hubbed 4-bolt, hubbed 8-bolt → 100 / 75 / 25 / 0 (plus proportional bolt circle 25, wrong bore 0, wrong bolt count 0)
+- [ ] Wafer chuck *(stretch, not started)*
+- [ ] Multi-port vacuum chamber *(stretch, not started)*
+- [~] Held-out or feature-composed family against template solvers (REVIEW #3): **decision recorded, not solved** (see Decisions)
+- [x] Auditor: committed engine image → hidden tasks → compare → zero on failure (`audit/auditor.py`, `cadrecover auditor run`)
+- [x] Audit pass rule defined and documented (REVIEW #5): mean audit Q over 3 fresh hidden tasks ≥ live mean Q − 10
+- [x] Verification checklist run; attack-chart numbers recorded from measurements (below)
 
 **Done-when evidence:**
-**Done:**
+- Honest audit: `auditor run --top 1` → 3 tasks Q 100.0 → `engine a6f5b5bba590 live 100.0 audit 100.0 -> PASS` (block 22448).
+- Swapped engine: miner1 keeps serving mock-oracle live but commits the diag-constant image `sha256:3d4fd12e…` (block 25022) → `live 100.0 audit 25.0 -> FAIL (audit mean 25.0 < live 100.0 - 10)` (blocks 25035, 25944) → next round revokes miner1's weight on chain (read back at block 29321). Re-committing the honest image → PASS → `{2: 1.0}` read back at block 32749.
+- Diagnostic miners earn 0: see the attack chart (gate run).
+
+**Flange:** parameters outer_diameter, thickness, bore_diameter, bolt_circle_diameter, bolt_hole_diameter, optional hub_diameter + hub_height, structural bolt_count 4/6/8 (never edited, never published: miners count holes on the drawing). Critical features: bore + every bolt hole (0.1 mm). Edits: outer diameter ±15–40 %, bolt circle resampled independently (≥ 4 mm move) so "scale holes with the disc" and "ignore the edit" both fail. 10 live challenges + 20 seeds passed coverage first try; `cadrecover score` on two tasks: honest 100, constant 25, wrong_holes 0, proportional 25.
+
+**Verification checklist (PRD §Verification):**
+
+| Check | Evidence |
+| --- | --- |
+| Reference vs itself passes every metric and edit | `test_correct_model_scores_100` (plate plain/slotted; flange ×3) |
+| Wrong hole size / missing / moved / wrong units / mirrored fail the right check | `test_wrong_hole_size_scores_0`, `test_missing_hole_fails_critical`, `test_moved_hole_fails_critical` (1 mm = 10× tol → `hole_1.position`), `test_wrong_units_fails` (inch model → Q 0); mirrored: plate and flange are mirror-symmetric, so `test_mirrored_part_…` asserts a mirrored model is NOT penalised; handedness matters only for asymmetric families (none yet) |
+| Extra holes (superset of guesses) fail | new `extra_<kind>` critical check in `evaluation/checks.py`; `test_extra_hole_fails_critical` |
+| Constant 25, one edit wrong 75 | `test_constant_model_scores_25`, `test_one_edit_wrong_scores_75` (both families) |
+| Accepted edits move a feature > 5× tol, self-IoU < 0.85 | `test_edits_are_discriminative` (both families) |
+| Empty, crashing, malformed output → 0 | sandbox `test_empty_or_malformed_output_does_not_build` (empty, syntax error, not a solid, no build_part), `test_forbidden_import_…`, `test_runaway_code_times_out`, `test_missing_solid_is_invalid` |
+| Fresh unseen seeds across demo families | plate: every live round; flange: 10 challenges + seeds 0–19 |
+| Tampered / wrong receiver / stale / replay / unsigned / oversized request / oversized source / unknown validator | `test_bad_requests_are_rejected[...]` (6 cases), `test_oversized_source_is_rejected`, `test_allowlist_blocks_unknown_validators`, `test_other_validator_cannot_read_someone_elses_job` |
+| Duplicate assignment | idempotent `job_id` (`test_signed_job_round_trip…` retry runs the model once); DB `UNIQUE(run_id, miner_hotkey)` |
+| Timeout / no response / CAD failure / validator outage distinct | round outcomes `timeout` / `failed: dispatch` / sandbox `timeout|invalid_source|exception` / `failure_class=validator_outage` (excluded, not zeroed: `test_validator_outage_is_excluded_not_zeroed`). **Killed worker (OOM) not tested.** |
+| Restart duplicates nothing; SSE reconnect rebuilds the same state | miner idempotency + per-run job ids; API `test_api.py` SSE resume tests. **Validator restart mid-round not tested.** |
+| Weight readback matches netuid, validator, miners | `_set_weights` → `matches()` on the validator's row; live blocks 15596, 29321, 32749 |
+| Honest audit passes, swapped fails | above |
+
+**Attack chart (measured, gate run):** fresh localnet, 3 rounds (`make demo` gate run + 1), plate family, mock honest miners
+
+| Miner | Type | Mean Q (n=3) | Share of weight (on chain, block 3686) |
+| --- | --- | --- | --- |
+| mock-oracle (uid 2) | Honest mock | 100.0 | 0.50 |
+| mock-noisy (uid 3) | Honest mock (misreads sometimes) | 100.0 this run; 0-100 per round in earlier sessions | 0.50 |
+| diag-constant (uid 4) | Diagnostic | 25.0 (expected 25) | 0 (below floor) |
+| diag-wrong-holes (uid 5) | Diagnostic | 0.0 (expected 0) | 0 |
+| diag-crash (uid 6) | Diagnostic | 0.0 | 0 |
+
+Swapped engine (miner serves oracle, commits the constant engine): audit 25 vs live 100 -> FAIL -> weight revoked on chain. The real strategies (claude-vision) are not measured yet: they wait for the API key.
+
 **Not done / gaps:**
+- Wafer chuck and vacuum chamber (stretch).
+- Template solvers (REVIEW #3) remain an **open risk**: see Decisions.
+- Flange coverage uses a ledger waiver for a draftwright false negative (`holes:bore.*`, `holes:location.*`, `bosses:boss_height.length`): the dimensions are drawn and still enforced through `required_labels`; waived entries are reported in `coverage.waived`. Plate is unaffected.
+- Flange: groove, separate bolt-circle and hub-height measurements not built (IoU covers hub height).
+- Audits take 3–10 min (3 tasks × sandbox at 1 CPU).
+- Mock engines get the task's private record mounted (only with `CADRECOVER_DEV_ORACLE=1`); real engines never do. The audit story is only fully meaningful with a real engine (claude-vision) + a fixed model endpoint for audits (PRD option A).
+
 **Decisions:**
-**Interfaces changed:**
-**Blockers:**
+- Audit pass rule (REVIEW #5): one-sided, mean over 3 fresh hidden tasks ≥ live mean − 10. Better-than-live is not hiding anything; worse means live answers came from elsewhere. Missing image or no commitment = fail; validator outage = inconclusive (no verdict).
+- A failed audit zeroes the hotkey until a clean audit; if it still holds on-chain weight and nobody qualifies, the round submits a self-weight to revoke it (B).
+- Critical check now rejects extra critical features (stricter for every family; never weakens).
+- **Held-out family (REVIEW #3):** the validator is open source, so a family "held out" in code is not secret, and a fixed family can always be template-solved. The real fix is feature-composed generation (random combinations of holes, slots, bores, bosses, pockets on varied bodies) or a closed generator run by the subnet owner. Not built in the hackathon. Mitigations today: two families, flange has no public practice fixture, fresh seeds, discriminative hidden edits, and engine audits on fresh tasks. Said plainly in the pitch.
+
+**Interfaces changed:** none in `protocol/`. `checks.critical` adds `extra_<kind>` failures.
+**Blockers:** none.
 
 ---
 
@@ -150,6 +197,7 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | b/phase-6-chain | Flange family, engine images + auditor, pass rule, extra-feature check, checklist tests | cad 61, services 131+, drawing 5 | Feature-composed generator; wafer chuck (stretch) |
 | 2026-10-29 | a/phase-3-evaluator (+ fix on c/phase-4-miner) | Protocol 0.2.0, edit sampler, sandbox image + runner, evaluator, `cadrecover score`; through-axis position fix | cad 18, services sandbox 4 | Phase 7: flange family, auditor, held-out family |
 | 2026-10-29 | a/phase-2-plate | Plate family, measurement, CAD/drawing workers, pipeline, CLI `challenge new/show`, fixture | services 16, cad 4, drawing 2: all passed | Phase 3: sandboxed rebuilds, discriminative edit sampler, IoU/D checks, the 100/75/25/0 self-test on real solids |
 | 2026-10-29 | a/phase-0-protocol | Protocol schemas + contract tests | 10 passed | Phase 2 |

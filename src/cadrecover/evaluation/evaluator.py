@@ -18,11 +18,11 @@ from pathlib import Path
 from build123d import export_gltf, import_step
 
 from cadrecover import paths
-from cadrecover.challenges.families import plate, plate_spec
+from cadrecover.challenges.families import flange, flange_spec, plate, plate_spec
 from cadrecover.evaluation.checks import score_set
 from cadrecover.protocol import FailedCheck, PrivateChallenge, SetScore
 
-FAMILIES = {"plate": (plate_spec, plate)}
+FAMILIES = {"plate": (plate_spec, plate), "flange": (flange_spec, flange)}
 
 
 def _load(step: str | None):

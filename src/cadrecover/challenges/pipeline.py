@@ -19,7 +19,7 @@ import subprocess
 from pathlib import Path
 
 from cadrecover import paths
-from cadrecover.challenges.families import plate_spec
+from cadrecover.challenges.families import flange_spec, plate_spec
 from cadrecover.protocol import (
     Artifact,
     FeatureMeasurement,
@@ -29,8 +29,8 @@ from cadrecover.protocol import (
 )
 from cadrecover.storage import db
 
-SPECS = {"plate": plate_spec}
-TITLES = {"plate": "Mounting plate"}
+SPECS = {"plate": plate_spec, "flange": flange_spec}
+TITLES = {"plate": "Mounting plate", "flange": "Vacuum flange"}
 
 
 class ChallengeError(RuntimeError):
@@ -74,7 +74,8 @@ def new_challenge(family: str = "plate", seed: int | None = None, *, scan_look: 
         number = f"LEGACY-1987-{s % 10000:04d}"
         drawing = _run("drawing", "cadrecover.challenges.drawing_worker", "draw", "--step", ref["step"],
                        "--out", str(private_dir), "--title", TITLES[family], "--number", number,
-                       "--require", json.dumps(spec.required_labels(params)), "--seed", str(s),
+                       "--require", json.dumps(spec.required_labels(params)),
+                       "--waive", json.dumps(getattr(spec, "LEDGER_WAIVERS", [])), "--seed", str(s),
                        *([] if scan_look else ["--clean"]))
         attempts.append({"seed_offset": attempt, "coverage_ok": drawing["coverage"]["ok"],
                          "missing": drawing["coverage"]["missing_required"], "unplaced": drawing["coverage"]["unplaced"]})

@@ -5,7 +5,8 @@ the template turns that into a submission. Honest mode is fully parametric.
 The other modes are labelled diagnostics that the mechanism must punish:
 
   constant      ignores overrides: right at s0 only                -> expect 25
-  proportional  holes scale with the plate instead of the 10 mm rule -> expect 25
+  proportional  holes scale with the part instead of the edit rule  -> expect 25
+                (plate: 10 mm edge offset; flange: bolt circle scales with the outer diameter)
   wrong_holes   hole diameter off by 30%                           -> expect 0
   crash         forbidden import                                   -> expect 0 (invalid source)
   timeout       never returns                                      -> expect 0
@@ -67,3 +68,60 @@ def plate_source(drawn: dict[str, float], mode: str = "honest", label: str = "")
         body=body,
         holes=_HOLES_PROPORTIONAL if mode == "proportional" else _HOLES_RULE,
     )
+
+
+_FLANGE = '''"""{header}"""
+{imports}import math
+
+from build123d import Align, Cylinder, Pos
+
+DRAWN = {drawn!r}  # values read off the drawing (bolt_count is the number of holes counted on it)
+
+
+def build_part(overrides):
+{body}    t = p["thickness"]
+    hub = "hub_diameter" in p
+    h = t + (p["hub_height"] if hub else 0.0)
+    part = Cylinder(p["outer_diameter"] / 2, t, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    if hub:
+        part += Pos(0, 0, t) * Cylinder(p["hub_diameter"] / 2, p["hub_height"], align=(Align.CENTER, Align.CENTER, Align.MIN))
+    part -= Pos(0, 0, h / 2) * Cylinder(p["bore_diameter"] / 2, 3 * h)
+    n = int(DRAWN["bolt_count"])
+{circle}    for k in range(n):
+        a = 2 * math.pi * k / n
+        part -= Pos(r * math.cos(a), r * math.sin(a), t / 2) * Cylinder(p["bolt_hole_diameter"] / 2, 3 * t)
+    return part
+'''
+
+_CIRCLE_RULE = '    r = p["bolt_circle_diameter"] / 2\n'
+_CIRCLE_PROPORTIONAL = '''\
+    # bolt circle kept at the drawn *fraction* of the outer diameter, not at the edited bolt_circle_diameter
+    r = DRAWN["bolt_circle_diameter"] / DRAWN["outer_diameter"] * p["outer_diameter"] / 2
+'''
+
+
+def flange_source(drawn: dict[str, float], mode: str = "honest", label: str = "") -> str:
+    if mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}")
+    body = {
+        "constant": "    p = dict(DRAWN)  # ignores overrides\n",
+        "wrong_holes": "    p = {**DRAWN, **overrides}\n    p['bolt_hole_diameter'] = p['bolt_hole_diameter'] * 1.3\n",
+        "timeout": "    while True:\n        pass\n    p = {}\n",
+    }.get(mode, "    p = {**DRAWN, **overrides}\n")
+    return _FLANGE.format(
+        header=f"CADRecover flange solution ({label or mode})",
+        imports="import socket  # forbidden: no network in a CAD submission\n" if mode == "crash" else "",
+        drawn={k: float(v) for k, v in drawn.items()},
+        body=body,
+        circle=_CIRCLE_PROPORTIONAL if mode == "proportional" else _CIRCLE_RULE,
+    )
+
+
+SOURCES = {"plate": plate_source, "flange": flange_source}
+
+
+def source_for(family: str, drawn: dict[str, float], mode: str = "honest", label: str = "") -> str:
+    """The template for a challenge family; ValueError for a family without one."""
+    if family not in SOURCES:
+        raise ValueError(f"no template for family {family!r} yet")
+    return SOURCES[family](drawn, mode, label)

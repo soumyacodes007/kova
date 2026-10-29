@@ -9,7 +9,7 @@ whole loop (signed jobs, sandbox, scoring, weights) can run end to end today.
   mock-oracle        reads perfectly                               (honest mock)
   mock-noisy         sometimes misreads a dimension (seeded/job)    (honest mock)
   diag-constant      ignores overrides                              (diagnostic, expect 25)
-  diag-proportional  holes scale with the plate                     (diagnostic, expect 25)
+  diag-proportional  holes scale with the part (plate edge offset / flange bolt circle)  (diagnostic, expect 25)
   diag-wrong-holes   hole diameter +30%                             (diagnostic, expect 0)
   diag-crash         forbidden import                               (diagnostic, expect 0)
   claude-vision      real VLM strategy; needs ANTHROPIC_API_KEY     (not wired yet)
@@ -24,7 +24,7 @@ import random
 from dataclasses import dataclass
 
 from cadrecover import paths
-from cadrecover.miner.templates import plate_source
+from cadrecover.miner.templates import SOURCES, source_for
 from cadrecover.protocol import PublicChallenge
 
 
@@ -60,7 +60,7 @@ def _oracle_read(challenge: PublicChallenge) -> dict[str, float]:
 
 
 def _require_family(challenge: PublicChallenge) -> None:
-    if challenge.family != "plate":
+    if challenge.family not in SOURCES:
         raise StrategyUnavailable(f"no template for family {challenge.family!r} yet")
 
 
@@ -71,7 +71,7 @@ class MockOracle(Strategy):
     def solve(self, challenge, drawing_png, job_id):
         _require_family(challenge)
         drawn = _oracle_read(challenge)
-        return Solution(plate_source(drawn, self.mode, label=self.name), model_id="mock:oracle",
+        return Solution(source_for(challenge.family, drawn, self.mode, label=self.name), model_id="mock:oracle",
                         strategy_version=self.version)
 
 
@@ -84,14 +84,15 @@ class MockNoisy(Strategy):
         _require_family(challenge)
         drawn = dict(_oracle_read(challenge))
         rng = random.Random(int(hashlib.sha256(job_id.encode()).hexdigest(), 16))
+        hole_key = "bolt_hole_diameter" if challenge.family == "flange" else "hole_diameter"
         roll, notes = rng.random(), "read cleanly"
         if roll < 0.15:
-            drawn["hole_diameter"] += 0.5
+            drawn[hole_key] += 0.5
             notes = "misread hole diameter by +0.5 mm"
         elif roll < 0.50:
             drawn["thickness"] += rng.choice((-1.0, 1.0))
             notes = "misread thickness by 1 mm"
-        return Solution(plate_source(drawn, "honest", label=self.name), model_id="mock:noisy",
+        return Solution(source_for(challenge.family, drawn, "honest", label=self.name), model_id="mock:noisy",
                         strategy_version=self.version, notes=notes)
 
 

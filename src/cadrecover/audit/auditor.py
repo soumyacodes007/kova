@@ -153,8 +153,10 @@ def run_audits(*, network: str = "local", top: int = 2, family: str = "plate", h
     state = load_state()
     miners = metagraph_miners(network, exclude_hotkeys={state["neurons"]["validator"]["hotkey"]})
     current = {(m.hotkey, m.registered_at_block) for m in miners}
-    table = standings(db.connect(), current=current)
+    table = [s for s in standings(db.connect(), current=current) if (s.hotkey, s.registered_at_block) in current]
+    # only a miner's current identity (a stale registration of the same hotkey has other scores)
     picked = [s for s in table if s.hotkey in hotkeys] if hotkeys else [s for s in table if s.weight > 0][:top]
     if not picked:
-        log("[audit] nobody earns weight: nothing to audit")
+        log("[audit] none of the given hotkeys is a current miner with scores: nothing to audit" if hotkeys
+            else "[audit] nobody earns weight: nothing to audit")
     return [audit_miner(s.hotkey, s.mean_quality, network=network, family=family, log=log) for s in picked]

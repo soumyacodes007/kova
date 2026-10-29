@@ -37,3 +37,12 @@ def test_no_network_inside(tmp_path):
          "try:\n    s.connect(('1.1.1.1', 53)); print('CONNECTED')\nexcept OSError as e:\n    print('BLOCKED', e)"],
         capture_output=True, text=True, timeout=60)
     assert "BLOCKED" in inspect.stdout, inspect.stdout + inspect.stderr
+
+
+@pytest.mark.parametrize("src", ["", "def build_part(overrides:\n    pass\n",
+                                 "def build_part(overrides):\n    return 42\n",
+                                 "import math\n"], ids=["empty", "syntax_error", "not_a_solid", "no_build_part"])
+def test_empty_or_malformed_output_does_not_build(tmp_path, src):
+    """PRD checklist: empty, crashing or malformed output scores 0 (no STEP -> the set is invalid)."""
+    r = sandbox.run_build(src, {}, tmp_path)
+    assert not r.ok and r.step is None, r

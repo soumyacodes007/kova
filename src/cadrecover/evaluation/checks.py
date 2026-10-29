@@ -52,6 +52,9 @@ def offset(a: tuple, b: tuple, axis: tuple = THROUGH_AXIS) -> float:
     return math.sqrt(max(0.0, sum(x * x for x in d) - along * along))
 
 
+CRITICAL_KINDS = ("hole", "slot", "bore", "port")
+
+
 def _nearest(e: FeatureMeasurement, measured: list[FeatureMeasurement]) -> FeatureMeasurement | None:
     pool = [m for m in measured if m.kind == e.kind and m.center is not None]
     return min(pool, key=lambda m: offset(m.center, e.center), default=None)
@@ -59,9 +62,15 @@ def _nearest(e: FeatureMeasurement, measured: list[FeatureMeasurement]) -> Featu
 
 def critical(expected: list[FeatureMeasurement], measured: list[FeatureMeasurement],
              size_tol: float, pos_tol: float) -> tuple[bool, list[FailedCheck]]:
-    """Every critical feature (holes, slots) present and placed within tolerance."""
+    """Every critical feature (holes, slots) present and placed within tolerance, and no extra ones:
+    a hole the drawing doesn't show is a wrong part (it would also let a superset of guesses pass)."""
     failed = []
-    for e in (f for f in expected if f.kind in ("hole", "slot", "bore", "port")):
+    crit = [f for f in expected if f.kind in CRITICAL_KINDS]
+    matched = {id(_nearest(e, measured)) for e in crit}
+    for m in measured:
+        if m.kind in CRITICAL_KINDS and m.center is not None and id(m) not in matched:
+            failed.append(FailedCheck(name=f"extra_{m.kind}", message=f"{m.kind} not on the drawing", location=m.center))
+    for e in crit:
         m = _nearest(e, measured)
         if m is None:
             failed.append(FailedCheck(name=f"{e.name}.missing", message=f"no {e.kind} found", location=e.center))

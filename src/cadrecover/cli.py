@@ -5,6 +5,9 @@
   cadrecover challenge new [--family plate] [--seed N]   # [A, phase 2] hidden part + drawing
   cadrecover challenge show ID                  # [A, phase 2] public record + where the drawing is
   cadrecover score my_part.py --task ID         # [A, phase 3] sandboxed rebuild at all 4 sets + breakdown
+  cadrecover miner run --wallet W --strategy S --port P   # [C, phase 4] signed miner HTTP server
+  cadrecover validator run [--rounds N]         # [B, phase 5] full rounds against discovered miners
+  cadrecover leaderboard                        # [B, phase 5] standings and proposed weights
 """
 
 from __future__ import annotations
@@ -74,6 +77,42 @@ def _score(a) -> None:
     print(f"Q = {ev.quality:.1f}")
 
 
+def _miner_run(a) -> None:
+    import bittensor as bt
+    import uvicorn
+
+    from cadrecover import paths
+    from cadrecover.miner import strategies
+    from cadrecover.miner.server import create_app
+
+    wallet = bt.Wallet(a.wallet, "default", path=str(paths.WALLETS))
+    allowed = set(a.validator) if a.validator else None
+    app = create_app(wallet, strategies.get(a.strategy), allowed_validators=allowed)
+    uvicorn.run(app, host=a.host, port=a.port, log_level="warning")
+
+
+def _validator_run(a) -> None:
+    from cadrecover.validator.round import run_round
+
+    for i in range(a.rounds):
+        out = run_round(family=a.family, deadline_s=a.deadline)
+        if a.json:
+            _print(out)
+
+
+def _leaderboard(a) -> None:
+    from cadrecover.storage import db
+    from cadrecover.validator.aggregate import standings
+
+    table = standings(db.connect())
+    if not table:
+        print("no evaluations yet")
+        return
+    print(f"{'uid':>4}  {'miner':<22}{'samples':>8}{'mean Q':>9}{'weight':>9}")
+    for s in table:
+        print(f"{s.uid:>4}  {(s.label or s.hotkey[:10]):<22}{s.samples:>8}{s.mean_quality:>9.1f}{s.weight:>9.3f}")
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="cadrecover")
     cmds = p.add_subparsers(dest="cmd", required=True)
@@ -102,6 +141,25 @@ def main(argv: list[str] | None = None) -> None:
     sc.add_argument("--task", required=True, help="challenge id")
     sc.add_argument("--json", action="store_true")
     sc.set_defaults(fn=_score)
+
+    mi = cmds.add_parser("miner").add_subparsers(dest="sub", required=True)
+    mr = mi.add_parser("run", help="run a miner HTTP server")
+    mr.add_argument("--wallet", required=True)
+    mr.add_argument("--strategy", required=True)
+    mr.add_argument("--host", default="127.0.0.1")
+    mr.add_argument("--port", type=int, required=True)
+    mr.add_argument("--validator", action="append", help="allowed validator hotkey (repeatable)")
+    mr.set_defaults(fn=_miner_run)
+
+    va = cmds.add_parser("validator").add_subparsers(dest="sub", required=True)
+    vr = va.add_parser("run", help="run validator rounds")
+    vr.add_argument("--rounds", type=int, default=1)
+    vr.add_argument("--family", default="plate")
+    vr.add_argument("--deadline", type=int, default=180)
+    vr.add_argument("--json", action="store_true")
+    vr.set_defaults(fn=_validator_run)
+
+    cmds.add_parser("leaderboard", help="standings from stored evaluations").set_defaults(fn=_leaderboard)
 
     a = p.parse_args(argv)
     a.fn(a)

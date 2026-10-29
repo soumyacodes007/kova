@@ -47,20 +47,51 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 5: Validator rounds and storage
 
-**Status:** not started · **Done when:** a full round with 5 miners completes and the leaderboard numbers are in SQLite.
+**Status:** done (2026-10-29), with **static discovery** until Phase 6 · **Done when:** a full round with 5 miners completes and the leaderboard numbers are in SQLite.
 
-- [ ] Scheduler: create a challenge (A's generator), discover miners from the metagraph, dispatch, poll, enforce the deadline
-- [ ] Rebuild and evaluate every submission (A's evaluator); matched batches; rolling aggregation
-- [ ] Weight = max(0, mean Q − floor); floor starts at **50**; no-update state plus an alert when nobody qualifies
-- [ ] Identity = hotkey + registration (a recycled UID starts fresh)
-- [ ] An event-log entry for every step (feeds C's SSE)
+- [x] **Scheduler** (`validator/round.py`, `cadrecover validator run`):
+  - A's `new_challenge()`, which now includes the hidden edits
+  - discovery from `~/.cadrecover/miners.json` (`validator/discovery.py`, written by `scripts/run-miners.sh`). **The metagraph is Phase 6.**
+  - signed dispatch and polling (`validator/client.py`) with result signatures verified; deadline enforced (default 180 s), then timeout = 0
+  - drawings served read-only from the public store (`validator/artifacts.py`, 127.0.0.1:**8790**)
+- [x] Every submission is rebuilt and evaluated through A's `score_source` (sandbox + evaluator). Every miner gets the same task each round. Rolling aggregation is in `validator/aggregate.py`: WINDOW 20, MIN_SAMPLES 1 for the demo.
+- [x] **Weights:**
+  - weight = max(0, mean Q − 50), normalized
+  - nobody above the floor → empty batch, receipt `skipped_no_qualifier`, event `weights.no_update`
+  - batches are stored with receipt state **`proposed`**; chain submission is Phase 6
+- [x] Identity = hotkey + `registered_at_block` (the `miners` table key; aggregation groups by it)
+- [x] **Events at every step:** `run.started`, `job.sent / done / failed / timeout / dispatch_failed`, `job.evaluated` (per-set scores), `weights.proposed / no_update`, `challenge.retired`. The challenge is retired after each round.
 
 **Done-when evidence:**
-**Done:**
+- Round 1 (`run_47c501d8e4`, **3 m 12 s**, 5 real miner processes):
+  - mock-oracle **100**, mock-noisy **100**, diag-constant **25** [100, 0, 0, 0], diag-wrong-holes **0**, diag-crash **0**
+  - weights proposed `{uid1: 0.5, uid2: 0.5}`
+- Rounds 2–3 (with the pre-fix evaluator): leaderboard mock-oracle 100 (3 samples), **mock-noisy 58.3**, constant 25, crash 0, wrong-holes 0; weights `{1: 0.857, 2: 0.143}`. This exposed A's through-axis bug (see agent-a); the fix is in.
+- Rounds 4–5 (after A's fix):
+  - mock-noisy **93.6** (sets 91 / 91 / 100 / 91: a thickness misread now costs only G and D) and **0** in round 4 (hole misread, correctly zeroing every set)
+  - leaderboard after 5 rounds: mock-oracle 100 (w 0.931), mock-noisy 53.7 (w 0.069), constant 25, wrong-holes 0, crash 0
+- SQLite after 3 rounds: runs 3 · assignments 15 · submissions 15 · evaluations 15 · evaluation_sets 60 · events 63 · weight_batches 3 · receipts 3 (`proposed`).
+- Tests: `tests/services/test_aggregate.py` **4 passed**:
+  - floor and 2:1 normalisation
+  - no qualifier → no weights
+  - an outage is excluded, not zeroed
+  - a recycled UID starts fresh
+
 **Not done / gaps:**
+- **Discovery is static** (`miners.json`). Phase 6 reads the metagraph and only queries registered, serving miners.
+- **Weights are not on-chain yet.** Receipts stop at `proposed`.
+- **MIN_SAMPLES = 1 is a demo setting.** Raise it (e.g. 5) for real runs.
+- **Scoring is sequential:** about 3 minutes per round for 5 miners, mostly sandbox and evaluator time. Parallelising rebuilds (2–3 workers) would roughly halve it.
+- **One challenge per round** (the PRD's "same family mix per batch" is trivially true with one family).
+- The artifact server serves the whole public store. That's fine because it only holds public files, but it doesn't check whether a challenge is still active.
+
 **Decisions:**
-**Interfaces changed:**
-**Blockers:**
+- Artifact port moved from 8090 to **8790** (8090 is taken by a Windows process; WSL mirrored networking shares ports).
+- Challenges are retired right after their round, since their ground truth may then be revealed (`/runs` pages, Phase 10).
+- Job ids are `<run_id>-uid<N>`.
+
+**Interfaces changed:** none (uses protocol 0.2.0).
+**Blockers:** none for Phase 6. Start testnet funding.
 
 ---
 
@@ -87,4 +118,5 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-29 | c/phase-4-miner (B commit) | Validator round, signed client, static discovery, artifact server, aggregation, DB writers, `validator run` / `leaderboard` | aggregate 4 passed; 5 live rounds | Phase 6: register on localnet, metagraph discovery, `bt.SetWeights` with readback |
 | 2026-10-29 | b/phase-1-setup | 3 envs + locks, compose localnet, SQLite schema, wallets, CLI `setup wallets` / `chain heartbeat`, Makefile | services 12 passed (at merge), heartbeat producing | Phase 5 scheduler against stubs; start testnet funding |

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Start 5 local miners (one wallet + port + strategy each) and write ~/.cadrecover/miners.json
-# for the validator's static discovery (Phase 5; Phase 6 replaces it with the metagraph).
+# (static discovery + strategy labels). If the chain is bootstrapped (~/.cadrecover/chain.json),
+# each miner also publishes its endpoint with ServeAxon so the validator finds it in the metagraph.
+# Miners bind 127.0.0.1 only; the chain rejects loopback, so they advertise this host's LAN IP and
+# a same-machine validator maps it back to loopback (chain/neurons.py).
 #
 # Strategies are MOCKS until a vision-model key is configured (see miner/strategies.py).
 #   bash scripts/run-miners.sh          # start
@@ -40,3 +43,14 @@ for m in "${MINERS[@]}"; do
   for _ in $(seq 1 40); do curl -sf "http://127.0.0.1:$port/v1/health" >/dev/null && break; sleep 0.25; done
   echo "uid $uid  $strategy  $(curl -s "http://127.0.0.1:$port/v1/health")"
 done
+
+if [ -f "$HOME_DIR/chain.json" ]; then
+  for m in "${MINERS[@]}"; do
+    read -r uid wallet port strategy <<<"$m"
+    "$CR" chain serve-axon --wallet "$wallet" --port "$port" 2>/dev/null | "$PY" -c "import json,sys; d=json.load(sys.stdin); print('axon', d['wallet'], 'uid', d['uid'], d['axon'])"
+    # engine commitment: the image the auditor will re-run (scripts/build-engines.sh builds them)
+    if digest=$(docker image inspect --format '{{.Id}}' "cadrecover-engine:$strategy" 2>/dev/null); then
+      "$CR" chain commit-engine --wallet "$wallet" --digest "$digest" --strategy "$strategy@0.1.0" 2>/dev/null         | "$PY" -c "import json,sys; d=json.load(sys.stdin); print('engine', d['wallet'], d['e'][:19], 'block', d['block'])"
+    fi
+  done
+fi

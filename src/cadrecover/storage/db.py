@@ -129,3 +129,40 @@ def save_weight_batch(con: sqlite3.Connection, batch, state: str, error: str | N
     con.execute("INSERT INTO receipts (batch_id, state, error, at) VALUES (?, ?, ?, ?)",
                 (batch.batch_id, state, error, _now()))
     con.commit()
+
+
+def add_receipt(con: sqlite3.Connection, batch_id: str, state: str, *, block: int | None = None,
+                extrinsic: str | None = None, readback: dict | None = None, error: str | None = None) -> None:
+    con.execute("INSERT INTO receipts (batch_id, state, block, extrinsic, readback, error, at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (batch_id, state, block, extrinsic, json.dumps(readback) if readback is not None else None, error, _now()))
+    con.commit()
+
+
+def receipts(con: sqlite3.Connection, batch_id: str) -> list[dict]:
+    return [dict(r) for r in con.execute("SELECT * FROM receipts WHERE batch_id = ? ORDER BY receipt_id", (batch_id,))]
+
+
+def save_commitment(con: sqlite3.Connection, hotkey: str, registered_at_block: int, engine_digest: str,
+                    strategy_version: str | None, block: int) -> None:
+    con.execute("INSERT OR IGNORE INTO commitments (hotkey, registered_at_block, engine_digest, strategy_version, block) "
+                "VALUES (?, ?, ?, ?, ?)", (hotkey, registered_at_block, engine_digest, strategy_version, block))
+    con.commit()
+
+
+def save_audit(con: sqlite3.Connection, audit_id: str, hotkey: str, engine_digest: str, challenge_id: str,
+               quality: float | None, passed: bool, block: int | None, detail: dict) -> None:
+    con.execute("INSERT INTO audits (audit_id, miner_hotkey, engine_digest, challenge_id, quality, passed, block, at, detail) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (audit_id, hotkey, engine_digest, challenge_id, quality, int(passed), block, _now(), json.dumps(detail)))
+    con.commit()
+
+
+def failed_audits(con: sqlite3.Connection) -> set[str]:
+    """Hotkeys whose latest audit verdict is a failure (weight 0 until a clean audit)."""
+    rows = con.execute("""
+        SELECT miner_hotkey, json_extract(detail, '$.verdict') AS verdict, at FROM audits
+        WHERE json_extract(detail, '$.verdict') IS NOT NULL ORDER BY at""").fetchall()
+    latest: dict[str, str] = {}
+    for r in rows:
+        latest[r["miner_hotkey"]] = r["verdict"]
+    return {h for h, v in latest.items() if v == "fail"}

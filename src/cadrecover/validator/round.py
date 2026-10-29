@@ -2,14 +2,17 @@
 
   challenge -> signed dispatch to every miner -> poll until done or deadline
   -> sandboxed rebuild + evaluation of every submission -> SQLite + events
-  -> standings -> proposed weight batch -> retire the challenge.
+  -> standings -> weight batch -> bt.SetWeights (plan, execute) -> readback -> retire the challenge.
 
-Weights are only *proposed* here; Phase 6 submits them on-chain and reads them back.
+With ~/.cadrecover/chain.json (written by `cadrecover chain bootstrap`) miners come from the
+metagraph and weights go on-chain; without it the round uses the static miner list and
+only proposes weights. Each weight state (proposed, committed, revealed, failed) is its own receipt.
 """
 
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -24,6 +27,65 @@ from cadrecover.storage import db
 from cadrecover.validator import aggregate, artifacts, client, discovery
 
 POLL_S = 1.0
+REVEAL_POLL_S = 3.0
+
+
+def _discover(network: str, static: bool, log):
+    """(miners, netuid, on_chain). Labels (strategy names) come from miners.json when present."""
+    from cadrecover.chain import bootstrap
+
+    state = bootstrap.load_state()
+    if static or "netuid" not in state or state.get("network") != network:
+        return discovery.static_miners(), 0, False
+    from cadrecover.chain import neurons
+
+    labels = {m.hotkey: m.label for m in discovery.static_miners()} if discovery.MINERS_FILE.exists() else {}
+    exclude = {state["neurons"]["validator"]["hotkey"], bootstrap.wallet("owner").hotkey.ss58_address}
+    miners = neurons.metagraph_miners(network, exclude_hotkeys=exclude, labels=labels)
+    log(f"[round] metagraph netuid {state['netuid']}: {len(miners)} miners serving an axon")
+    return miners, state["netuid"], True
+
+
+def _normalized(w: dict[int, float]) -> dict[int, float]:
+    total = sum(w.values())
+    return {int(k): v / total for k, v in w.items() if v > 0} if total > 0 else {}
+
+
+def matches(onchain: dict[int, float], proposed: dict[int, float], tol: float = 2e-3) -> bool:
+    """Chain weights are u16-quantized, so compare normalized rows with a small tolerance."""
+    a, b = _normalized(onchain), _normalized(proposed)
+    return set(a) == set(b) and all(abs(a[k] - b[k]) <= tol for k in a)
+
+
+def _set_weights(con, batch: WeightBatch, network: str, run_id: str, reveal_wait_s: float, log) -> str:
+    """submit -> receipt (committed/submitted/failed) -> poll until the row is readable -> receipt (revealed)."""
+    from cadrecover.chain import neurons
+
+    before = neurons.read_weights(network)["revealed_row"]
+    r = neurons.submit_weights(batch.weights, network)
+    db.add_receipt(con, batch.batch_id, r["state"], block=r.get("block"), extrinsic=r.get("extrinsic"),
+                   error=r.get("error"))
+    db.add_event(con, f"weights.{r['state']}", {"batch_id": batch.batch_id, "block": r.get("block"),
+                                               "error": r.get("error")}, run_id)
+    log(f"[chain] weights {r['state']} at block {r.get('block')}" + (f": {r['error']}" if r.get("error") else ""))
+    if r["state"] == "failed":
+        return "failed"
+    deadline, seen_pending = time.monotonic() + reveal_wait_s, False
+    while True:
+        rb = neurons.read_weights(network)
+        seen_pending |= bool(rb["pending_commits"])
+        fresh = rb["revealed_row"] != before or seen_pending or r["state"] == "submitted"
+        if rb["revealed_row"] and fresh and not rb["pending_commits"] and matches(rb["revealed_row"], batch.weights):
+            db.add_receipt(con, batch.batch_id, "revealed", block=rb["block"], readback=rb["revealed_row"])
+            db.add_event(con, "weights.revealed", {"batch_id": batch.batch_id, "block": rb["block"],
+                                                   "readback": rb["revealed_row"]}, run_id)
+            log(f"[chain] read back at block {rb['block']}: {rb['revealed_row']} (matches the batch)")
+            return "revealed"
+        if time.monotonic() > deadline:
+            log(f"[chain] not readable after {reveal_wait_s:.0f}s (block {rb['block']}, "
+                f"{len(rb['pending_commits'])} pending commit(s)); receipt stays {r['state']}")
+            return r["state"]
+        time.sleep(REVEAL_POLL_S)
 
 
 def _zero_eval(challenge_id: str, job_id: str, hotkey: str, sets, reason: str) -> Evaluation:
@@ -73,11 +135,11 @@ async def _collect(miners, wallet, jobs: dict[str, JobRequest], deadline: dateti
     return outcome
 
 
-def run_round(*, family: str = "plate", deadline_s: int = 180, network: str = "local", netuid: int = 0,
-              artifact_port: int = 8790, log=print) -> dict:
+def run_round(*, family: str = "plate", deadline_s: int = 180, network: str = "local", static: bool = False,
+              reveal_wait_s: float = 120, artifact_port: int = 8790, log=print) -> dict:
     con = db.connect()
     wallet = bt.Wallet("validator", "default", path=str(paths.WALLETS))
-    miners = discovery.static_miners()
+    miners, netuid, on_chain = _discover(network, static, log)
     server, base_url = artifacts.serve(port=artifact_port)
     try:
         log(f"[round] creating {family} challenge …")
@@ -133,7 +195,8 @@ def run_round(*, family: str = "plate", deadline_s: int = 180, network: str = "l
         db.set_run_status(con, run_id, "done")
         db.retire_challenge(con, challenge_id, "round finished; ground truth may be revealed")
 
-        table = aggregate.standings(con)
+        current = {(m.hotkey, m.registered_at_block) for m in miners} if on_chain else None
+        table = aggregate.standings(con, current=current, zeroed=db.failed_audits(con))
         weights = {s.uid: s.weight for s in table if s.weight > 0}
         batch = WeightBatch(batch_id="wb_" + uuid.uuid4().hex[:10], network=network, netuid=netuid,
                             validator_hotkey=wallet.hotkey.ss58_address, floor=QUALITY_FLOOR,
@@ -144,6 +207,8 @@ def run_round(*, family: str = "plate", deadline_s: int = 180, network: str = "l
         db.add_event(con, "weights.proposed" if weights else "weights.no_update", {"batch_id": batch.batch_id,
                      "weights": weights}, run_id)
         log(f"[round] weights {state}: {weights or 'nobody above the floor (no update)'}")
+        if on_chain and weights:
+            state = _set_weights(con, batch, network, run_id, reveal_wait_s, log)
         return {"run_id": run_id, "challenge_id": challenge_id, "results": results, "weight_batch": batch.batch_id,
                 "weights_state": state, "weights": weights}
     finally:

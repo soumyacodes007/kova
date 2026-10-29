@@ -1,5 +1,5 @@
 """Versions every record carries. Bump PROTOCOL_VERSION on any schema change and log it in notes/shared.md."""
 
-PROTOCOL_VERSION = "0.1.0"
+PROTOCOL_VERSION = "0.2.0"  # 0.2.0: build_part receives only overrides; defaults must come from the drawing
 SCORING_VERSION = "2.1"  # PRD v2.1: every parameter set scored, critical features gate each set
 CAD_ENGINE = {"build123d": "0.13.0"}  # the exact build123d miners' code is rebuilt with

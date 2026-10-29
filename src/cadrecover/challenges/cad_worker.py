@@ -2,8 +2,10 @@
 
   python -m cadrecover.challenges.cad_worker sample --family plate --seed N
   python -m cadrecover.challenges.cad_worker build --family plate --params '{...}' --out DIR --name s0
+  python -m cadrecover.challenges.cad_worker edits --family plate --params '{...}' --seed N --out DIR
 
-`build` refuses to write a reference that fails its self-test.
+`build` refuses to write a reference that fails its self-test; `edits` writes
+s1-s3 references for three discriminative hidden edits.
 """
 
 from __future__ import annotations
@@ -36,11 +38,33 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--params", required=True)
     b.add_argument("--out", type=Path, required=True)
     b.add_argument("--name", default="s0")
+    e = sub.add_parser("edits")
+    e.add_argument("--family", required=True, choices=sorted(FAMILIES))
+    e.add_argument("--params", required=True)
+    e.add_argument("--seed", type=int, required=True)
+    e.add_argument("--out", type=Path, required=True)
     a = p.parse_args(argv)
 
     fam_spec, fam_geom = FAMILIES[a.family]
     if a.cmd == "sample":
         print(json.dumps({"params": fam_spec.sample(a.seed)}))
+        return 0
+
+    if a.cmd == "edits":
+        from cadrecover.challenges.edits import sample_edits
+        from cadrecover.challenges.measure import measure
+
+        a.out.mkdir(parents=True, exist_ok=True)
+        sets = []
+        for i, ed in enumerate(sample_edits(fam_spec, fam_geom, json.loads(a.params), a.seed), start=1):
+            step = a.out / f"s{i}.step"
+            export_step(ed["part"], str(step))
+            sets.append({"index": i, "values": ed["values"], "overrides": ed["overrides"], "step": str(step),
+                         "sha256": _sha256(step), "volume": ed["part"].volume,
+                         "measurements": [m.model_dump() for m in measure(ed["part"])],
+                         "max_feature_shift_mm": ed["max_feature_shift_mm"],
+                         "reference_self_iou": ed["reference_self_iou"]})
+        print(json.dumps({"ok": True, "sets": sets}))
         return 0
 
     params = json.loads(a.params)

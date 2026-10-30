@@ -18,6 +18,7 @@ const ArenaViewer = dynamic(() => import("@/components/arena/arena-viewer"), {
 const src = (url: string) => (url.startsWith("/v1/") ? clientPath(url) : url);
 
 function winner(t: MatchDetail["tasks"][number]) {
+  if (!t.champion) return null;
   const a = t.challenger.quality;
   const b = t.champion?.quality ?? null;
   if (a == null || (t.champion && b == null)) return null;
@@ -114,7 +115,7 @@ export function MatchView({ detail: initial, poll = false }: { detail: MatchDeta
           ) : (
             <p className="text-center font-mono text-[13px] text-[#c9c9c4]">
               drawing {match.tasks_done} of {match.tasks_total}
-              <span className="block text-[12px] text-[#a8a8a3]">needs +{match.margin} to take the hill</span>
+              <span className="block text-[12px] text-[#a8a8a3]">{match.champion ? `needs +${match.margin} to take the hill` : "quality floor 50 to take the hill"}</span>
             </p>
           )}
         </div>

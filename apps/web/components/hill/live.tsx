@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { clientPath, type EventOut } from "@/lib/api";
 
 const POLL_MS = 2500;
-const CHANGES = new Set(["hill.task_scored", "hill.crowned", "hill.defended"]);
+const CHANGES = new Set(["hill.match_started", "hill.task_scored", "hill.crowned", "hill.defended", "hill.interrupted"]);
 
 /**
  * Polls the hill events while `active`. The first pass only finds the newest event id, so history never

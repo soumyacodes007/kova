@@ -89,7 +89,7 @@ export default function DocsPage() {
         protocol is version 0.2.0 and scoring is version 2.1.
       </PageHead>
 
-      <div className="grid gap-10 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-16">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-16">
         <nav aria-label="On this page" className="lg:sticky lg:top-32 lg:self-start">
           <ul className="flex gap-x-5 gap-y-2 overflow-x-auto text-[14px] lg:flex-col">
             {TOC.map(([id, label]) => (

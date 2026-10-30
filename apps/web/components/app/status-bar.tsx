@@ -16,14 +16,18 @@ function useStatus(): State {
 
   useEffect(() => {
     let stop = false;
+    let misses = 0;
     async function tick() {
       try {
         const res = await fetch(clientPath("/v1/status"), { cache: "no-store" });
         if (!res.ok) throw new Error(String(res.status));
         const status = (await res.json()) as Status;
+        misses = 0;
         if (!stop) setState({ kind: "ok", status, at: Date.now() });
       } catch {
-        if (!stop) setState({ kind: "offline" });
+        // one slow poll while the validator is busy is not an outage: show offline after two misses in a row
+        misses += 1;
+        if (!stop && misses >= 2) setState({ kind: "offline" });
       }
     }
     tick();

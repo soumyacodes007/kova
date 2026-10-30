@@ -24,7 +24,7 @@ async function HillBody({ searchParams }: { searchParams: SP }) {
   return (
     <>
       {sample && <SampleBanner live="/hill" />}
-      <HillLive active={!sample && live?.status === "running"} />
+      <HillLive active={!sample} />
       <Sheet
         footer={
           <>

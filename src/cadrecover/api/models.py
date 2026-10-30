@@ -12,6 +12,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from cadrecover.protocol import PublicChallenge
+from cadrecover.protocol.hill import FailedCheckOut, ModelFile, ModelKind, SetResult
 
 RunStatus = Literal["dispatching", "collecting", "evaluating", "done", "aborted"]
 AssignmentStatus = Literal["pending", "sent", "done", "failed", "timeout"]
@@ -84,39 +85,6 @@ class ChallengeOut(PublicChallenge):
     status: Literal["active", "retired"]
     retired_at: str | None
     drawing_url: str = Field(description="API path of the drawing PNG")
-
-
-class FailedCheckOut(BaseModel):
-    name: str
-    message: str
-    location: tuple[float, float, float] | None
-
-
-class SetResult(BaseModel):
-    """One scored parameter set: s0 (the drawing's values) or one of three hidden edits."""
-
-    index: int = Field(ge=0, le=3)
-    valid: bool = Field(description="V_s: the build ran and produced a valid solid")
-    critical_ok: bool = Field(description="C_s: every critical feature present and in place")
-    geometry: float = Field(description="G_s: solid IoU against the reference, 0..1")
-    dimensions: float = Field(description="D_s: fraction of dimensions within tolerance, 0..1")
-    q_s: float = Field(description="Q_s = V * C * (0.7 G + 0.3 D), 0..1")
-    passed: bool = Field(description="valid, critical features ok and no failed checks")
-    failed_check_count: int
-    failed_checks: list[FailedCheckOut] = Field(
-        description="empty while the challenge is active: failed checks name hidden edits and carry true values")
-    values: dict[str, float] | None = Field(
-        description="the parameter values this set was built with; null until the challenge is retired")
-    revealed: bool = Field(description="false while the challenge is active (hidden values withheld)")
-
-
-ModelKind = Literal["candidate", "reference"]
-
-
-class ModelFile(BaseModel):
-    set_index: int
-    kind: ModelKind
-    url: str = Field(description="API path of the GLB (served read-only)")
 
 
 class MinerRunResult(BaseModel):

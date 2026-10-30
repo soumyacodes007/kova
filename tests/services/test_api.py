@@ -517,3 +517,149 @@ def test_identities_outside_the_newest_run_earn_no_weight(world):
     rows = {r["uid"]: r for r in c.get("/v1/leaderboard").json()["rows"]}
     assert rows[1]["mean_quality"] == 100 and rows[1]["weight"] == 0  # stale identity: above the floor but not current
     assert rows[1]["latest_batch_weight"] == 1.0  # what the newest weight batch actually gave it
+
+
+# Track B uses the same disclosure rules and validator artifacts as Track A.
+@pytest.fixture
+def hill_client(world):
+    from cadrecover.protocol.hill import Entry, LineageEntry, MatchSummary, MatchTask, Model
+
+    con = db.connect(world / "t.sqlite")
+    model = Model(fingerprint="a" * 64, name="test-catalog-model", source="catalog", submitted_at="2026-10-30T00:00:00Z",
+                  status="champion", mean_quality=75, tee=True)
+    queued = Model(fingerprint="b" * 64, name="test-miner-model", source="miner", submitted_at="2026-10-30T01:00:00Z",
+                   status="queued", fee={"amount_tao": 0, "simulated": True})
+    for m in (model, queued):
+        con.execute("INSERT INTO models (fingerprint, model_json, network) VALUES (?, ?, 'local')",
+                    (m.fingerprint, m.model_dump_json()))
+    lineage = LineageEntry(rev="A", fingerprint=model.fingerprint, name=model.name, crowned_at_block=500,
+                           crowned_at="2026-10-30T00:01:00Z", score=75, dethroned_at_block=None)
+    con.execute("INSERT INTO lineage (rev, entry_json, network) VALUES (?, ?, 'local')", ("A", lineage.model_dump_json()))
+    for mid, cid, status in (("m_done", "ch_done", "decided"), ("m_live", "ch_live", "running")):
+        summary = MatchSummary(match_id=mid, challenger={"fingerprint": model.fingerprint, "name": model.name},
+                               champion=None, status=status, seed={"block_hash": "0x1234", "drand_round": 7, "value": 42},
+                               tasks_total=1, tasks_done=1, challenger_mean=25, champion_mean=None, margin=2,
+                               verdict="crowned" if status == "decided" else None,
+                               decided_block=500 if status == "decided" else None, started_at="2026-10-30T00:00:00Z")
+        con.execute("INSERT INTO matches (match_id, summary_json, block_number, drand_randomness, network) "
+                    "VALUES (?, ?, 499, 'randomness', 'local')", (mid, summary.model_dump_json()))
+        task = MatchTask(index=0, challenge_id=cid, family="plate", drawing_url=f"/v1/challenges/{cid}/drawing.png",
+                         challenger=Entry(quality=25, latency_s=1.2), champion=None)
+        ev = _ev(mid, "catalog", cid, [1, 0, 0, 0])
+        con.execute("INSERT INTO match_tasks (match_id, task_index, challenge_id, task_json, challenger_evaluation_json) "
+                    "VALUES (?, 0, ?, ?, ?)", (mid, cid, task.model_dump_json(), ev.model_dump_json()))
+        folder = world / "hill" / mid / "task0" / "challenger"
+        folder.mkdir(parents=True)
+        for kind in ("candidate", "reference"):
+            (folder / f"s0.{kind}.glb").write_bytes(b"glTF-" + kind.encode())
+    con.commit()
+    db.add_event(con, "model.status", {"fingerprint": model.fingerprint, "status": "champion", "block": 500,
+                                        "detail": "crowned"})
+    con.close()
+    with TestClient(create_app(world / "t.sqlite", public_dir=world / "public", runs_dir=world / "runs",
+                               hill_dir=world / "hill", chain_rpc=None, state_file=world / "none.json")) as client:
+        yield client
+
+
+def test_hill_contract_endpoints(hill_client):
+    c = hill_client
+    hill = c.get("/v1/hill").json()
+    assert set(hill) == {"margin", "tasks_per_match", "families", "champion", "lineage", "live_match", "queue"}
+    assert hill["champion"]["name"] == "test-catalog-model"
+    assert hill["lineage"][0]["rev"] == "A" and hill["live_match"]["match_id"] == "m_live"
+    assert hill["queue"][0]["fee"]["simulated"] is True
+    models = c.get("/v1/models").json()
+    assert [m["mean_quality"] for m in models] == [75, None]
+    model = c.get("/v1/models/" + "a" * 64).json()
+    assert set(model) == {"model", "matches", "events"}
+    assert len(model["matches"]) == 2 and model["events"][0]["status"] == "champion"
+    assert c.get("/v1/matches").json()[0]["match_id"] == "m_live"
+    assert c.get("/v1/matches/m_done").json()["match"]["verdict"] == "crowned"
+
+
+def test_hill_active_task_withholds_private_checks_values_and_reference(hill_client):
+    body = hill_client.get("/v1/matches/m_live").json()
+    assert body["match"]["seed"] is None
+    assert hill_client.get("/v1/matches").json()[0]["seed"] is None
+    assert hill_client.get("/v1/hill").json()["live_match"]["seed"] is None
+    assert hill_client.get("/v1/models/" + "a" * 64).json()["matches"][0]["seed"] is None
+    entry = body["tasks"][0]["challenger"]
+    assert [s["q_s"] for s in entry["sets"]] == [1, 0, 0, 0]
+    assert all(s["values"] is None and s["failed_checks"] == [] and not s["revealed"] for s in entry["sets"])
+    assert [m["kind"] for m in entry["models"]] == ["candidate"]
+    assert "14.750" not in json.dumps(body) and "width" not in json.dumps(body)
+    url = "/v1/matches/m_live/tasks/0/challenger/models/s0."
+    assert hill_client.get(url + "candidate.glb").status_code == 200
+    assert hill_client.get(url + "reference.glb").status_code == 404
+
+
+def test_hill_retired_task_reveals_track_a_shapes(hill_client):
+    assert hill_client.get("/v1/matches/m_done").json()["match"]["seed"]["value"] == 42
+    entry = hill_client.get("/v1/matches/m_done").json()["tasks"][0]["challenger"]
+    assert entry["sets"][0]["values"] == {"width": 100}
+    assert entry["sets"][1]["failed_checks"][0]["name"] == "hole_1.position"
+    assert entry["sets"][1]["revealed"] is True
+    assert {m["kind"] for m in entry["models"]} == {"reference", "candidate"}
+    assert hill_client.get("/v1/matches/m_done/tasks/0/challenger/models/s0.reference.glb").status_code == 200
+
+
+@pytest.mark.parametrize("path", ["/v1/models/nope", "/v1/matches/nope",
+    "/v1/matches/m_done/tasks/0/champion/models/s0.candidate.glb",
+    "/v1/matches/m_done/tasks/-1/challenger/models/s0.candidate.glb",
+    "/v1/matches/m_done/tasks/0/challenger/models/private.json",
+    "/v1/matches/m_done/tasks/0/challenger/models/s4.candidate.glb"])
+def test_hill_unknown_records_and_files_are_404(hill_client, path):
+    assert hill_client.get(path).status_code == 404
+
+
+def test_empty_hill_is_contract_shaped_without_fixtures(tmp_path):
+    c = TestClient(create_app(tmp_path / "empty.sqlite", chain_rpc=None, state_file=tmp_path / "none.json"))
+    assert c.get("/v1/models").json() == [] and c.get("/v1/matches").json() == []
+    hill = c.get("/v1/hill").json()
+    assert hill["champion"] is None and hill["live_match"] is None
+    assert hill["lineage"] == [] and hill["queue"] == []
+
+
+def test_hill_networks_are_isolated(hill_client):
+    from cadrecover.protocol.hill import Model
+
+    path = hill_client.app.state.db_path
+    con = db.connect(path)
+    m = Model(fingerprint="a" * 64, name="testnet champion", source="catalog", status="champion",
+              submitted_at="2026-10-30T02:00:00Z", mean_quality=90)
+    con.execute("INSERT INTO models (fingerprint, model_json, network) VALUES (?, ?, 'test')",
+                (m.fingerprint, m.model_dump_json()))
+    con.execute("INSERT INTO hill_settings (key,value_json) VALUES ('test.margin','3.0')")
+    con.commit()
+    con.close()
+    c = TestClient(create_app(path, chain_rpc=None, hill_network="test"))
+    hill = c.get("/v1/hill").json()
+    assert hill["champion"]["name"] == "testnet champion" and hill["margin"] == 3
+    assert hill["lineage"] == [] and hill["live_match"] is None
+    assert c.get("/v1/matches").json() == [] and c.get("/v1/matches/m_done").status_code == 404
+    assert c.get("/v1/models/" + "a" * 64).json()["events"] == []
+    assert c.get("/v1/matches/m_done/tasks/0/challenger/models/s0.candidate.glb").status_code == 404
+    assert hill_client.get("/v1/hill").json()["champion"]["name"] == "test-catalog-model"
+
+
+def test_hill_api_refuses_mainnet_config(tmp_path):
+    with pytest.raises(ValueError, match="local or test"):
+        create_app(tmp_path / "bad.sqlite", hill_network="mainnet", chain_rpc=None)
+
+
+def test_hill_seed_stays_hidden_until_all_tasks_retire(hill_client):
+    con = db.connect(hill_client.app.state.db_path)
+    con.execute("UPDATE matches SET summary_json=json_set(summary_json,'$.status','decided') WHERE match_id='m_live'")
+    con.commit()
+    con.close()
+    assert hill_client.get("/v1/matches/m_live").json()["match"]["seed"] is None
+
+
+def test_later_duplicate_rejection_is_not_the_original_models_status(hill_client):
+    con = db.connect(hill_client.app.state.db_path)
+    db.add_event(con, "model.status", {"fingerprint": "a" * 64, "status": "rejected", "hotkey": "5DuplicateMiner",
+                                       "network": "local", "block": 900, "detail": "same weights, committed later"})
+    con.close()
+    detail = hill_client.get("/v1/models/" + "a" * 64).json()
+    assert detail["model"]["status"] == "champion"
+    assert all(e["status"] != "rejected" for e in detail["events"])

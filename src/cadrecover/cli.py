@@ -70,6 +70,39 @@ def _commit_engine(a) -> None:
     _print(commit_engine(a.wallet, a.digest, a.strategy, network=a.network))
 
 
+def _model_check(a) -> None:
+    from cadrecover.validator.hill.precheck import precheck_model
+
+    out = precheck_model(a.repo, a.revision)
+    _print(out.model_dump(mode="json"))
+
+
+def _model_submit(a) -> None:
+    from cadrecover.validator.hill.watcher import submit_model
+
+    if a.network == "test" and not a.allow_testnet_spend:
+        sys.exit("testnet submission requires explicit --allow-testnet-spend approval")
+    _print(submit_model(a.wallet, a.repo, a.revision, network=a.network,
+                        allow_testnet_spend=a.allow_testnet_spend))
+
+
+def _hill_run(a) -> None:
+    from cadrecover.validator.hill.match import run_catalog
+
+    if a.network == "test" and not a.allow_testnet_spend:
+        sys.exit("testnet hill runs require explicit --allow-testnet-spend approval")
+    import math
+
+    if (a.tasks <= 0 or not math.isfinite(a.max_spend_usd) or a.max_spend_usd <= 0
+            or not math.isfinite(a.total_cap_usd) or a.total_cap_usd <= 0
+            or not math.isfinite(a.margin) or a.margin < 0):
+        sys.exit("tasks and budget caps must be positive; margin must be finite and nonnegative")
+    out = run_catalog(network=a.network, tasks_per_match=a.tasks, max_spend_usd=a.max_spend_usd, log=_logger(a),
+                      allow_testnet_spend=a.allow_testnet_spend, total_cap_usd=a.total_cap_usd, margin=a.margin,
+                      only=a.model or None)
+    _print(out)
+
+
 def _logger(a):
     """Rich-styled log lines for the long-running commands; --plain keeps raw `print` (same text, no colour)."""
     from cadrecover import cli_logs
@@ -255,6 +288,34 @@ def main(argv: list[str] | None = None) -> None:
     ce.add_argument("--strategy", required=True, help="label, e.g. mock-oracle@0.1.0")
     ce.add_argument("--network", default="local", choices=["local", "test"])
     ce.set_defaults(fn=_commit_engine)
+
+    mo = cmds.add_parser("model", help="check or commit immutable Hugging Face model weights").add_subparsers(
+        dest="sub", required=True)
+    mc = mo.add_parser("check", help="free metadata-only pre-check; never downloads weights")
+    mc.add_argument("--repo", required=True)
+    mc.add_argument("--revision", required=True, help="full 40-hex Hugging Face commit SHA")
+    mc.set_defaults(fn=_model_check)
+    ms = mo.add_parser("submit", help="pre-check and publish a hotkey-signed model commitment")
+    ms.add_argument("--repo", required=True)
+    ms.add_argument("--revision", required=True, help="full 40-hex Hugging Face commit SHA")
+    ms.add_argument("--wallet", required=True)
+    ms.add_argument("--network", default="local", choices=["local", "test"])
+    ms.add_argument("--allow-testnet-spend", action="store_true", help="explicitly approve testnet submission costs")
+    ms.set_defaults(fn=_model_submit)
+
+    hi = cmds.add_parser("hill", help="Track B: models compete on the same fresh hidden drawings").add_subparsers(
+        dest="sub", required=True)
+    hr = hi.add_parser("run", help="evaluate catalog challengers against the hill champion")
+    hr.add_argument("--network", default="local", choices=["local", "test"])
+    hr.add_argument("--catalog", required=True, action="store_true", help="enter supported Chutes vision models")
+    hr.add_argument("--tasks", type=int, default=10)
+    hr.add_argument("--max-spend-usd", type=float, default=0.50)
+    hr.add_argument("--total-cap-usd", type=float, default=3.00, help="persistent lifetime Chutes spend cap")
+    hr.add_argument("--margin", type=float, default=2.0, help="strict winning margin in quality points")
+    hr.add_argument("--model", action="append", help="only enter this catalog model id (repeatable)")
+    hr.add_argument("--allow-testnet-spend", action="store_true", help="explicitly approve this testnet catalog run")
+    hr.add_argument("--plain", action="store_true")
+    hr.set_defaults(fn=_hill_run)
 
     au = cmds.add_parser("auditor").add_subparsers(dest="sub", required=True)
     ar = au.add_parser("run", help="audit top miners: re-run their committed engine on hidden tasks")

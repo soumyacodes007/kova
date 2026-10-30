@@ -48,6 +48,161 @@
         }
       }
     },
+    "/v1/hill": {
+      "get": {
+        "tags": [
+          "hill"
+        ],
+        "summary": "Get Hill",
+        "operationId": "get_hill",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hill"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "tags": [
+          "hill"
+        ],
+        "summary": "List Hill Models",
+        "operationId": "list_hill_models",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Model"
+                  },
+                  "type": "array",
+                  "title": "Response List Hill Models"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/models/{fingerprint}": {
+      "get": {
+        "tags": [
+          "hill"
+        ],
+        "summary": "Get Hill Model",
+        "operationId": "get_hill_model",
+        "parameters": [
+          {
+            "name": "fingerprint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fingerprint"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/matches": {
+      "get": {
+        "tags": [
+          "hill"
+        ],
+        "summary": "List Hill Matches",
+        "operationId": "list_hill_matches",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MatchSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Hill Matches"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/matches/{match_id}": {
+      "get": {
+        "tags": [
+          "hill"
+        ],
+        "summary": "Get Hill Match",
+        "operationId": "get_hill_match",
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Match Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/runs": {
       "get": {
         "tags": [
@@ -402,6 +557,71 @@
                   "title": "Response List Audits"
                 }
               }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/matches/{match_id}/tasks/{index}/{side}/models/{name}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Hill Model File",
+        "operationId": "hill_model_file",
+        "parameters": [
+          {
+            "name": "match_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Match Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          },
+          {
+            "name": "side",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Side"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A GLB mesh written by the validator",
+            "content": {
+              "model/gltf-binary": {}
             }
           },
           "422": {
@@ -1129,7 +1349,7 @@
           "protocol_version": {
             "type": "string",
             "title": "Protocol Version",
-            "default": "0.2.0"
+            "default": "0.3.0"
           },
           "scoring_version": {
             "type": "string",
@@ -1422,6 +1642,66 @@
         "title": "CriticalFeatureSpec",
         "description": "A feature checked at every parameter set; missing or misplaced zeroes that set (PRD v2.1)."
       },
+      "Entry": {
+        "properties": {
+          "quality": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "latency_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency S"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/SetResult"
+            },
+            "type": "array",
+            "title": "Sets"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelFile"
+            },
+            "type": "array",
+            "title": "Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quality",
+          "latency_s",
+          "error",
+          "sets",
+          "models"
+        ],
+        "title": "Entry"
+      },
       "EventOut": {
         "properties": {
           "event_id": {
@@ -1533,6 +1813,25 @@
         ],
         "title": "FailedCheckOut"
       },
+      "Fee": {
+        "properties": {
+          "amount_tao": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Amount Tao"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount_tao",
+          "simulated"
+        ],
+        "title": "Fee"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1563,6 +1862,76 @@
           "db"
         ],
         "title": "Health"
+      },
+      "Hill": {
+        "properties": {
+          "margin": {
+            "type": "number",
+            "title": "Margin"
+          },
+          "tasks_per_match": {
+            "type": "integer",
+            "title": "Tasks Per Match"
+          },
+          "families": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "plate",
+                "flange",
+                "wafer_chuck",
+                "vacuum_chamber"
+              ]
+            },
+            "type": "array",
+            "title": "Families"
+          },
+          "champion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Model"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lineage": {
+            "items": {
+              "$ref": "#/components/schemas/LineageEntry"
+            },
+            "type": "array",
+            "title": "Lineage"
+          },
+          "live_match": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "queue": {
+            "items": {
+              "$ref": "#/components/schemas/Model"
+            },
+            "type": "array",
+            "title": "Queue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "margin",
+          "tasks_per_match",
+          "families",
+          "champion",
+          "lineage",
+          "live_match",
+          "queue"
+        ],
+        "title": "Hill"
       },
       "Leaderboard": {
         "properties": {
@@ -1755,6 +2124,272 @@
           "audit"
         ],
         "title": "LeaderboardRow"
+      },
+      "LineageEntry": {
+        "properties": {
+          "rev": {
+            "type": "string",
+            "title": "Rev"
+          },
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "crowned_at_block": {
+            "type": "integer",
+            "title": "Crowned At Block"
+          },
+          "crowned_at": {
+            "type": "string",
+            "title": "Crowned At"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "dethroned_at_block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dethroned At Block"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rev",
+          "fingerprint",
+          "name",
+          "crowned_at_block",
+          "crowned_at",
+          "score",
+          "dethroned_at_block"
+        ],
+        "title": "LineageEntry"
+      },
+      "MatchDetail": {
+        "properties": {
+          "match": {
+            "$ref": "#/components/schemas/MatchSummary"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/MatchTask"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match",
+          "tasks"
+        ],
+        "title": "MatchDetail"
+      },
+      "MatchSeed": {
+        "properties": {
+          "block_hash": {
+            "type": "string",
+            "title": "Block Hash"
+          },
+          "drand_round": {
+            "type": "integer",
+            "title": "Drand Round"
+          },
+          "value": {
+            "type": "integer",
+            "maximum": 4294967295.0,
+            "minimum": 0.0,
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "block_hash",
+          "drand_round",
+          "value"
+        ],
+        "title": "MatchSeed"
+      },
+      "MatchSummary": {
+        "properties": {
+          "match_id": {
+            "type": "string",
+            "title": "Match Id"
+          },
+          "challenger": {
+            "$ref": "#/components/schemas/ModelRef"
+          },
+          "champion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "decided"
+            ],
+            "title": "Status"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchSeed"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tasks_total": {
+            "type": "integer",
+            "title": "Tasks Total"
+          },
+          "tasks_done": {
+            "type": "integer",
+            "title": "Tasks Done",
+            "default": 0
+          },
+          "challenger_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenger Mean"
+          },
+          "champion_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Champion Mean"
+          },
+          "margin": {
+            "type": "number",
+            "title": "Margin",
+            "default": 2.0
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "crowned",
+                  "defended"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          },
+          "decided_block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided Block"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match_id",
+          "challenger",
+          "champion",
+          "status",
+          "seed",
+          "tasks_total",
+          "tasks_done",
+          "challenger_mean",
+          "champion_mean",
+          "margin",
+          "verdict",
+          "decided_block",
+          "started_at"
+        ],
+        "title": "MatchSummary"
+      },
+      "MatchTask": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "challenge_id": {
+            "type": "string",
+            "title": "Challenge Id"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "plate",
+              "flange",
+              "wafer_chuck",
+              "vacuum_chamber"
+            ],
+            "title": "Family"
+          },
+          "drawing_url": {
+            "type": "string",
+            "title": "Drawing Url"
+          },
+          "challenger": {
+            "$ref": "#/components/schemas/Entry"
+          },
+          "champion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Entry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "challenge_id",
+          "family",
+          "drawing_url",
+          "challenger",
+          "champion"
+        ],
+        "title": "MatchTask"
       },
       "MinerBatchAppearance": {
         "properties": {
@@ -2191,6 +2826,307 @@
         ],
         "title": "MinerRunResult"
       },
+      "Model": {
+        "properties": {
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "catalog",
+              "miner"
+            ],
+            "title": "Source"
+          },
+          "repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "base_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Model"
+          },
+          "hotkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotkey"
+          },
+          "uid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uid"
+          },
+          "commit_block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit Block"
+          },
+          "submitted_at": {
+            "type": "string",
+            "title": "Submitted At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "prechecked",
+              "queued",
+              "evaluating",
+              "scored",
+              "champion",
+              "defeated",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Reason"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Progress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mean_quality": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Quality"
+          },
+          "per_family": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "propertyNames": {
+              "enum": [
+                "plate",
+                "flange",
+                "wafer_chuck",
+                "vacuum_chamber"
+              ]
+            },
+            "type": "object",
+            "title": "Per Family"
+          },
+          "critical_pass_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Pass Rate"
+          },
+          "edit_pass_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edit Pass Rate"
+          },
+          "recent_tasks": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Recent Tasks"
+          },
+          "matches_won": {
+            "type": "integer",
+            "title": "Matches Won",
+            "default": 0
+          },
+          "matches_lost": {
+            "type": "integer",
+            "title": "Matches Lost",
+            "default": 0
+          },
+          "mean_latency_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Latency S"
+          },
+          "tee": {
+            "type": "boolean",
+            "title": "Tee",
+            "default": false
+          },
+          "chutes_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chutes Url"
+          },
+          "hf_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hf Url"
+          },
+          "fee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fee"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "fingerprint",
+          "name",
+          "source",
+          "repo",
+          "revision",
+          "base_model",
+          "hotkey",
+          "uid",
+          "commit_block",
+          "submitted_at",
+          "status",
+          "reject_reason",
+          "progress",
+          "mean_quality",
+          "per_family",
+          "critical_pass_rate",
+          "edit_pass_rate",
+          "recent_tasks",
+          "matches_won",
+          "matches_lost",
+          "mean_latency_s",
+          "tee",
+          "chutes_url",
+          "hf_url",
+          "fee"
+        ],
+        "title": "Model"
+      },
+      "ModelDetail": {
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/Model"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchSummary"
+            },
+            "type": "array",
+            "title": "Matches"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/StatusEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "matches",
+          "events"
+        ],
+        "title": "ModelDetail"
+      },
       "ModelFile": {
         "properties": {
           "set_index": {
@@ -2218,6 +3154,24 @@
           "url"
         ],
         "title": "ModelFile"
+      },
+      "ModelRef": {
+        "properties": {
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fingerprint",
+          "name"
+        ],
+        "title": "ModelRef"
       },
       "ParameterSpec": {
         "properties": {
@@ -2253,6 +3207,26 @@
         ],
         "title": "ParameterSpec",
         "description": "A parameter the miner's build_part(params) must accept, and the range it may be edited over."
+      },
+      "Progress": {
+        "properties": {
+          "done": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Done"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "done",
+          "total"
+        ],
+        "title": "Progress"
       },
       "ReceiptOut": {
         "properties": {
@@ -2556,6 +3530,58 @@
         ],
         "title": "SetResult",
         "description": "One scored parameter set: s0 (the drawing's values) or one of three hidden edits."
+      },
+      "StatusEvent": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "prechecked",
+              "queued",
+              "evaluating",
+              "scored",
+              "champion",
+              "defeated",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "at",
+          "block",
+          "detail"
+        ],
+        "title": "StatusEvent"
       },
       "StatusOut": {
         "properties": {

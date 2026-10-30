@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.routing import APIRoute
 
 from cadrecover import paths
-from cadrecover.api import chain_info, events, queries
+from cadrecover.api import chain_info, events, hill, queries
 from cadrecover.api.db_access import connect_ro
 from cadrecover.api.models import (
     AuditOut,
@@ -61,7 +61,8 @@ def _inside(root: Path, *parts: str) -> Path | None:
 
 def create_app(db_path: Path | str | None = None, *, public_dir: Path | None = None, runs_dir: Path | None = None,
                state_file: Path | None = None, chain_rpc: str | None = "auto", cors_origins: list[str] | None = None,
-               sse_poll_s: float = 0.5, sse_keepalive_s: float = 15.0) -> FastAPI:
+               sse_poll_s: float = 0.5, sse_keepalive_s: float = 15.0,
+               hill_dir: Path | None = None, hill_network: str | None = None) -> FastAPI:
     """Build the app.
 
     chain_rpc: "auto" probes the local node named in chain.json; None never touches the chain; or an HTTP RPC URL.
@@ -70,7 +71,11 @@ def create_app(db_path: Path | str | None = None, *, public_dir: Path | None = N
     db.connect(db_file).close()  # make sure the file and schema exist; the API itself only reads
     public_root = Path(public_dir or paths.PUBLIC)
     runs_root = Path(runs_dir or (paths.RUNTIME / "runs"))
-    probe = chain_info.ChainProbe(state_file if state_file is not None else chain_info.default_state_file(), chain_rpc)
+    hill_root = Path(hill_dir or (paths.RUNTIME / "hill"))
+    hill_network = hill_network or os.environ.get("CADRECOVER_API_NETWORK", "local")
+    if hill_network not in ("local", "test"):
+        raise ValueError("CADRECOVER_API_NETWORK must be local or test")
+    probe = chain_info.ChainProbe(state_file if state_file is not None else chain_info.default_state_file(hill_network), chain_rpc)
     if cors_origins is None:
         env = os.environ.get("CADRECOVER_API_CORS")
         cors_origins = [o.strip() for o in env.split(",") if o.strip()] if env else DEFAULT_CORS
@@ -107,6 +112,32 @@ def create_app(db_path: Path | str | None = None, *, public_dir: Path | None = N
             counts=queries.counts(con), latest_event_id=queries.latest_event_id(con), latest_run=queries.latest_run(con))
 
     # ---------------------------------------------------------------- runs and challenges
+
+    @app.get("/v1/hill", response_model=hill.Hill, tags=["hill"])
+    def get_hill(con=Con):
+        return hill.hill(con, hill_network)
+
+    @app.get("/v1/models", response_model=list[hill.Model], tags=["hill"])
+    def list_hill_models(con=Con):
+        return hill.models(con, hill_network)
+
+    @app.get("/v1/models/{fingerprint}", response_model=hill.ModelDetail, tags=["hill"])
+    def get_hill_model(fingerprint: str, con=Con):
+        found = hill.model_detail(con, fingerprint, hill_network) if ID_RE.fullmatch(fingerprint) else None
+        if found is None:
+            raise HTTPException(404, "unknown model")
+        return found
+
+    @app.get("/v1/matches", response_model=list[hill.MatchSummary], tags=["hill"])
+    def list_hill_matches(con=Con):
+        return hill.matches(con, hill_network)
+
+    @app.get("/v1/matches/{match_id}", response_model=hill.MatchDetail, tags=["hill"])
+    def get_hill_match(match_id: str, con=Con):
+        found = hill.match_detail(con, match_id, hill_root, hill_network) if ID_RE.fullmatch(match_id) else None
+        if found is None:
+            raise HTTPException(404, "unknown match")
+        return found
 
     @app.get("/v1/runs", response_model=list[RunSummary], tags=["runs"])
     def list_runs(limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
@@ -156,6 +187,16 @@ def create_app(db_path: Path | str | None = None, *, public_dir: Path | None = N
 
     png = {200: {"content": {"image/png": {}}, "description": "The drawing PNG"}}
     glb = {200: {"content": {"model/gltf-binary": {}}, "description": "A GLB mesh written by the validator"}}
+
+    @app.get("/v1/matches/{match_id}/tasks/{index}/{side}/models/{name}", response_class=FileResponse,
+             responses=glb, tags=["files"])
+    def hill_model_file(match_id: str, index: int, side: str, name: str, con=Con):
+        if not ID_RE.fullmatch(match_id) or not hill.model_path_allowed(con, match_id, index, side, name, hill_network):
+            raise HTTPException(404, "no such model, or not yet public")
+        f = _inside(hill_root, match_id, f"task{index}", side, name)
+        if f is None:
+            raise HTTPException(404, "no such model")
+        return FileResponse(f, media_type="model/gltf-binary", headers={"Cache-Control": "public, max-age=60"})
 
     @app.get("/v1/challenges/{challenge_id}/drawing.png", response_class=FileResponse, responses=png, tags=["files"])
     def drawing(challenge_id: str, con=Con):

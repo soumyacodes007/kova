@@ -48,6 +48,8 @@ class ChainProbe:
             rpc = LOCAL_RPC if st.get("network") == "local" else None
         block = self._head(rpc) if rpc else None
         validator = (st.get("neurons") or {}).get("validator") or {}
+        if st.get("network") == "test" and not validator:
+            validator = {"hotkey": st.get("owner_hotkey")}
         info = ChainInfo(network=st.get("network"), netuid=st.get("netuid"), validator_hotkey=validator.get("hotkey"),
                          commit_reveal_enabled=st.get("commit_reveal_enabled"), tempo=st.get("tempo"),
                          block=block, reachable=block is not None)
@@ -55,5 +57,7 @@ class ChainProbe:
         return info
 
 
-def default_state_file() -> Path:
-    return paths.HOME / "chain.json"
+def default_state_file(network: str = "local") -> Path:
+    if network not in ("local", "test"):
+        raise ValueError("network must be local or test")
+    return paths.HOME / ("chain.json" if network == "local" else "chain-test.json")

@@ -456,11 +456,11 @@ export interface components {
             position_tolerance_mm: number;
         };
         Entry: {
-            quality?: number | null;
-            latency_s?: number | null;
-            error?: string | null;
-            sets?: components["schemas"]["SetResult"][];
-            models?: components["schemas"]["ModelFile"][];
+            quality: number | null;
+            latency_s: number | null;
+            error: string | null;
+            sets: components["schemas"]["SetResult"][];
+            models: components["schemas"]["ModelFile"][];
         };
         EventOut: {
             event_id: number;
@@ -494,7 +494,7 @@ export interface components {
         Hill: {
             margin: number;
             tasks_per_match: number;
-            families: string[];
+            families: ("plate" | "flange" | "wafer_chuck" | "vacuum_chamber")[];
             champion: components["schemas"]["Model"] | null;
             lineage: components["schemas"]["LineageEntry"][];
             live_match: components["schemas"]["MatchSummary"] | null;
@@ -538,7 +538,7 @@ export interface components {
             crowned_at_block: number;
             crowned_at: string;
             score: number;
-            dethroned_at_block?: number | null;
+            dethroned_at_block: number | null;
         };
         MatchDetail: {
             match: components["schemas"]["MatchSummary"];
@@ -556,12 +556,12 @@ export interface components {
             status: "running" | "decided";
             seed: components["schemas"]["MatchSeed"] | null;
             tasks_total: number;
-            tasks_done?: number;
-            challenger_mean?: number | null;
-            champion_mean?: number | null;
-            margin?: number;
-            verdict?: "crowned" | "defended" | null;
-            decided_block?: number | null;
+            tasks_done: number;
+            challenger_mean: number | null;
+            champion_mean: number | null;
+            margin: number;
+            verdict: "crowned" | "defended" | null;
+            decided_block: number | null;
             started_at: string;
         };
         MatchTask: {
@@ -634,30 +634,30 @@ export interface components {
             fingerprint: string;
             name: string;
             source: "catalog" | "miner";
-            repo?: string | null;
-            revision?: string | null;
-            base_model?: string | null;
-            hotkey?: string | null;
-            uid?: number | null;
-            commit_block?: number | null;
+            repo: string | null;
+            revision: string | null;
+            base_model: string | null;
+            hotkey: string | null;
+            uid: number | null;
+            commit_block: number | null;
             submitted_at: string;
             status: "submitted" | "prechecked" | "queued" | "evaluating" | "scored" | "champion" | "defeated" | "rejected";
-            reject_reason?: string | null;
-            progress?: components["schemas"]["Progress"] | null;
-            mean_quality?: number | null;
-            per_family?: {
+            reject_reason: string | null;
+            progress: components["schemas"]["Progress"] | null;
+            mean_quality: number | null;
+            per_family: {
                 [key: string]: number;
             };
-            critical_pass_rate?: number | null;
-            edit_pass_rate?: number | null;
-            recent_tasks?: number[];
-            matches_won?: number;
-            matches_lost?: number;
-            mean_latency_s?: number | null;
-            tee?: boolean;
-            chutes_url?: string | null;
-            hf_url?: string | null;
-            fee?: components["schemas"]["Fee"] | null;
+            critical_pass_rate: number | null;
+            edit_pass_rate: number | null;
+            recent_tasks: number[];
+            matches_won: number;
+            matches_lost: number;
+            mean_latency_s: number | null;
+            tee: boolean;
+            chutes_url: string | null;
+            hf_url: string | null;
+            fee: components["schemas"]["Fee"] | null;
         };
         ModelDetail: {
             model: components["schemas"]["Model"];

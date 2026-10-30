@@ -109,6 +109,68 @@ def test_challenge_new_family_line_still_there():
     assert cli_args(["challenge", "new", "--family", "plate"]).family == "plate"
 
 
+def test_hill_and_model_argument_contract():
+    a = cli_args(["hill", "run", "--network", "local", "--catalog", "--tasks", "3", "--max-spend-usd", "0.50"])
+    assert (a.catalog, a.tasks, a.max_spend_usd, a.network) == (True, 3, 0.5, "local")
+    assert a.total_cap_usd == 3.0 and a.margin == 2.0
+    assert not a.allow_testnet_spend
+    a = cli_args(["model", "check", "--repo", "org/model", "--revision", "a" * 40])
+    assert a.repo == "org/model" and a.revision == "a" * 40
+    a = cli_args(["model", "submit", "--repo", "org/model", "--revision", "a" * 40, "--wallet", "miner1"])
+    assert a.wallet == "miner1" and a.network == "local"
+
+
+def test_model_check_uses_metadata_precheck(monkeypatch, capsys):
+    from cadrecover.protocol.hill import ModelCommitment
+    from cadrecover.validator.hill import precheck
+
+    seen = []
+    def check(repo, revision):
+        seen.append((repo, revision))
+        return ModelCommitment(repo=repo, revision=revision, fingerprint="b" * 64, weight_bytes=512)
+    monkeypatch.setattr(precheck, "precheck_model", check)
+    cli.main(["model", "check", "--repo", "org/model", "--revision", "a" * 40])
+    assert seen == [("org/model", "a" * 40)]
+    assert json.loads(capsys.readouterr().out)["fingerprint"] == "b" * 64
+
+
+def test_hill_run_forwards_cap_and_tasks(monkeypatch, capsys):
+    from cadrecover.validator.hill import match
+
+    seen = {}
+    def run(**kwargs):
+        seen.update(kwargs)
+        return {"spend_usd": 0.001}
+    monkeypatch.setattr(match, "run_catalog", run)
+    cli.main(["hill", "run", "--catalog", "--tasks", "3", "--max-spend-usd", "0.50", "--plain"])
+    assert seen["tasks_per_match"] == 3 and seen["max_spend_usd"] == 0.5
+    assert seen["total_cap_usd"] == 3.0 and seen["margin"] == 2.0
+    assert seen["network"] == "local" and callable(seen["log"])
+    assert json.loads(capsys.readouterr().out)["spend_usd"] == 0.001
+
+
+def test_testnet_cli_requires_explicit_spend_opt_in():
+    with pytest.raises(SystemExit, match="allow-testnet-spend"):
+        cli.main(["hill", "run", "--catalog", "--network", "test"])
+    with pytest.raises(SystemExit, match="allow-testnet-spend"):
+        cli.main(["model", "submit", "--repo", "org/model", "--revision", "a" * 40,
+                  "--wallet", "owner", "--network", "test"])
+
+
+def test_model_submit_forwards_explicit_network_opt_in(monkeypatch, capsys):
+    from cadrecover.validator.hill import watcher
+
+    seen = {}
+    def submit(wallet, repo, revision, **kwargs):
+        seen.update(wallet=wallet, repo=repo, revision=revision, **kwargs)
+        return {"commitment_block": 123}
+    monkeypatch.setattr(watcher, "submit_model", submit)
+    cli.main(["model", "submit", "--repo", "org/model", "--revision", "a" * 40,
+              "--wallet", "owner", "--network", "test", "--allow-testnet-spend"])
+    assert seen["allow_testnet_spend"] is True and seen["network"] == "test"
+    assert json.loads(capsys.readouterr().out)["commitment_block"] == 123
+
+
 # ------------------------------------------------------------------ api serve
 
 

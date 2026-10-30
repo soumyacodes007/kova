@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Tokens follow the Cloudflare DESIGN.md supplied for this page (technical minimalism, light only,
+ * one orange accent, 1-4px radii, faint orange-tinted card shadow). Departures, on purpose:
+ * - Geist / Geist Mono stand in for FT Kunst Grotesk / Apercu Mono (both commercial).
+ * - Text on the orange accent is ink, not white: white on #ff5e1f is ~3:1 and fails WCAG AA.
+ * - Hover lightens to #ff7038 (the spec's accent token) so ink text stays above 4.5:1.
+ * - Red is used only for failed checks, never as decoration.
+ */
+@theme {
+  --color-paper: #fdfdfc;
+  --color-surface: #f4f4f2;
+  --color-line: #e6e6e3;
+  --color-ink: #262626;
+  --color-ink-soft: #5b5b58;
+  --color-accent: #ff5e1f;
+  --color-accent-hover: #ff7038;
+  --color-fail: #c8261b;
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
+
+  --shadow-card: 0 4px 60px 0 rgb(255 80 10 / 0.06), 0 2px 12px 0 rgb(0 0 0 / 0.03);
+
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
 }

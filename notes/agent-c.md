@@ -105,6 +105,7 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 **Done-when evidence:**
 **Done:** 2026-10-30 scaffold only: `create-next-app` in `apps/web` (Next 16.4.3, React 19.3, TypeScript, Tailwind 4, ESLint, App Router, `@/*` alias); `npm run lint` clean, `npm run build` passes. Uses npm, not pnpm (pnpm isn't installed on this machine). `lib/api-types.ts` kept. No pages, R3F or shadcn yet.
+2026-10-30 landing page `/` (static): tokens from the supplied Cloudflare DESIGN.md (light only, one orange accent, ink text on orange for AA contrast), Geist; R3F viewer (three 0.187, fiber 9, drei 10) showing real GLBs from `apps/web/scripts/landing-assets.py` (flange seed 1000; candidate with bolt circle +0.8 mm: IoU 0.998, D 1.0, critical fail, 6 holes 0.400 mm off). Every number is sourced in `lib/landing-data.ts`. `npm run lint` clean, `npm run build` passes; checked at 1440 and 375 px (no horizontal scroll, no console errors). The "Next: king of the hill" section is labelled Planned.
 **Not done / gaps:**
 
 ---

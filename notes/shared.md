@@ -6,6 +6,7 @@ Everyone reads this file at the start of every session and updates it when a gat
 
 | Phase | Owner | Status | Done-when check passed? (date, by) |
 | --- | --- | --- | --- |
+| **Stage 2 Track B local gate** | A, B, C | **done** (committed real-model scope) | 2026-10-31:270 services;144 CAD+1skip;11 drawing; Gemma66.24 crown → Qwen66.67 vs31.11; actual UID1=1 readback; five API and three page routes live. Runtime proof hill-local-gate.json. |
 | 0 Protocol drafts (day 1) | A, B, C | done | 2026-10-29: 10 contract tests passed |
 | 1 Setup and environments | B | done | 2026-10-29: `check-envs.sh` all 3 OK; heartbeat 23 → 33 producing |
 | 2 Challenges and drawings | A | done | 2026-10-29: `cadrecover challenge new` → readable drawing, coverage ok, lint 1.0 |
@@ -50,6 +51,8 @@ Change log (newest first): `date · contract · old → new version · what chan
 - 2026-10-29 · all contracts · — → 0.1.0 · created · —
 
 ## Handoffs
+
+2026-10-31 B/C verification handoff: local gate passed at commits6143a0c and26d1e2a atop waferca8b9a6. All actual measurements/evidence in notes/agent-b.md and ~/.cadrecover/runtime/logs/hill-local-gate.json. Chutes connection receipt response ID1a5d304e0e2349169142cd496af5f73c; live receipts /v1/events?kind=hill.provider_response. Remaining catalog provider503 is queued/interrupted, not a zero score. Active concurrent retry owns the localnet; stop it only after that work finishes. Later uncommitted mock-mode edits are outside this verification; original Track B real-model scope retained pending user clarification.
 
 2026-10-30 A → B/C: wafer chuck prerequisite committed `ca8b9a6` on a/phase-12-wafer-chuck. Sequential baseline suites services177 passed; CAD144 passed/1expected skip; drawing11 passed. Wafer evaluator self-test100/75/25/0 across3variants. B begins b/phase-12-hill atop this commit.
 

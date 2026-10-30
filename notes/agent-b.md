@@ -143,7 +143,7 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 12 / Stage 2 Track B — king of the hill (2026-10-30/31)
 
-**Status:** implementation complete, live verification in progress; not claiming the final gate.
+**Status:** required real-model local gate passed; testnet spending/deployment remain gated; catalog continuation hit provider HTTP503.
 Branch: b/phase-12-hill, atop A prerequisite ca8b9a6. No push.
 
 - [x] Protocol0.3.0 model/hill records and shared Track A viewer shapes. Full services suite: **266 passed, 1 deprecation warning in72.60s**. Latest CLI tests after cap flags: **23 passed in4.60s**.
@@ -154,8 +154,8 @@ Branch: b/phase-12-hill, atop A prerequisite ca8b9a6. No push.
 - [x] SHA256 entropy and deterministic task plan; post-commit block enforced; plate/flange/wafer_chuck cycling. Paid source cache before sandbox; per-side evaluation cache only within match. Interrupted matches remain hidden for resume.
 - [x] Strict margin>2, initial floor>=50, ties defend; lineage A..Z,AA; atomic champion/status/decision/retirement/events. Tests cover outage/cache/resume, rollback, shared tasks, rule boundaries, lineage and catalog self-weight receipts.
 - [x] Deploy dry-run GPU24/concurrency4/pinned revision, guarded cleanup executor. **No live deployment**. Disabled due $50 build balance, unverified vision request support/runtime billing upper bound.
-- [ ] Real local catalog3-task matches, crown, actual weight receipts, final browser gate.
-- [ ] Final regression evidence and B/C commits.
+- [x] Required real local catalog gate: two real models, crowns, weight readback, live API/pages/assets; final browser-helper limitation recorded below.
+- [x] Final regression evidence and B/C commits; no push.
 - [ ] Testnet match/commit-reveal receipts: user spend approval not given; no registrations/spend made.
 
 **Decisions:** catalog fingerprint identifies provider ID, not attested weights; miner fingerprint hashes sorted safetensors path:LFSsha lines. Entire MatchSummary.seed object stays null until decision and all tasks retired (public entropy reconstructs private dimensions). Network isolation; spend cap shared across networks. Catalog champion self-weight has explicit reason. Shared board logs all decisions.
@@ -172,3 +172,16 @@ Branch: b/phase-12-hill, atop A prerequisite ca8b9a6. No push.
 Connection proof: actual HTTP200 response ID **1a5d304e0e2349169142cd496af5f73c**, Gemma model, prompt2285/output403, **$0.00042331**, latency31.679s. Saved outside git at ~/.cadrecover/runtime/logs/chutes-connection-proof.json. New hill.provider_response events contain provider IDs/usage/cost only, no credentials/images/source. Unit test verifies receipt correlation and secret omission.
 
 Environment recovery: WSL DNS tunneling resolver10.255.255.254 failed for Chutes and Hugging Face; UDP probes confirmed public resolvers reachable. Temporary /etc/resolv.conf uses1.1.1.1/8.8.8.8; original saved /tmp/cadrecover-resolvconf-before-hill. Chutes catalog HTTP200 afterward. Runtime original credential stays in Downloads and WSL profile reads it directly into the environment without copying/printing it.
+
+
+2026-10-31 **required local gate PASSED for committed real-model implementation** (ca8b9a6 / 6143a0c / 26d1e2a).
+- Final sequential suites: services270 passed/1 warning in77.85s; CAD144 passed/1 expected skip in512.97s; drawing11 passed/1 existing chamber-readability warning in572.05s. No check weakened.
+- Real catalog initial crown: m_75ac28046704 Gemma **66.235465** (plate50, flange48.706395, chuck100); lineageA; local weights committed3261, readback/revealed3262, UID1 self-weight because catalog has no hotkey.
+- Real matched dethroning: m_814ae5d7b593 Qwen3.8 **66.666667 vs Gemma31.111111**, strict margin2 cleared; lineageB. Qwen sets per task100/100/0; Gemma50/0/43.333333. New weight receipt committed5662; same target row was already UID1=1, so freshness guard correctly did not invent a new reveal receipt when no pending commit was observed. Actual current row verified: {1: 1.0}.
+- Five endpoints returned HTTP200 with contract shapes. All three hill pages HTTP200, live model data, no sample mode; 11 referenced static assets HTTP200; real GLB header glTF (105148bytes). TypeScript, ESLint, production build pass. API restarted with required response schemas.
+- Earlier browser checks covered live hill and match. Final browser helper recheck failed with 'windows sandbox failed: helper_unknown_error: setup refresh had errors'; no final full visual recheck claimed. HTTP/asset/GLB checks passed.
+- Current-chain miner proof repeated after concurrent localnet recreation: SmolVLM-256M-Instruct, revision7e3e67edbbed1bf9888184d9df282b700a323964, fingerprint1069f0d7525cd2f2bed94454ba5d3be6c3227df6b1a58210db30d4d98a130cbf; 513028808bytes metadata only; 121-byte hotkey commitment/readback **4317**; watcher submitted/prechecked/queued, fee0 simulated, deploy disabled.
+- Remaining catalog continuation reached Kimi HTTP503 and has no verdict/score for that outage. Another active process is retrying it under the shared guard; do not duplicate paid calls or stop its localnet. Accounted total at this capture **0.300781 USD**, including unknown/pending reservations, cap3USD. Source of truth: runtime/logs/hill-local-gate.json and hill_spend.
+- Testnet605 registration/permit verified read-only; no testnet inference/weights or neuron registration in this session. Task10 still requires user's explicit spend OK. Custom deployment remains disabled.
+- Concurrent source=mock protocol/UI/runner edits appeared after the verified commits and are preserved uncommitted, outside this real-model verification. No mock crown is used as gate evidence. Chamber WIP preserved uncommitted.
+Session log: 2026-10-31 | c/phase-12-hill-api (stacked atop b/phase-12-hill) | real-model local gate, provider connection receipt, API/TS contracts | 270 services;144 CAD+1skip;11 drawing; real crown+dethroning; on-chain row | provider continuation/testnet approval remain.

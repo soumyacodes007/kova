@@ -32,7 +32,7 @@ def test_source_for_dispatches_by_family():
     assert "bolt_circle_diameter" in source_for("flange", DRAWN)
     assert "slot_length" in source_for("plate", {"width": 100.0, "length": 60.0, "thickness": 8.0, "hole_diameter": 6.0})
     with pytest.raises(ValueError):
-        source_for("wafer_chuck", DRAWN)
+        source_for("no_such_family", DRAWN)  # wafer_chuck got its template; an unknown family still has none
 
 
 def test_mock_strategies_pick_the_flange_template(tmp_path, monkeypatch):

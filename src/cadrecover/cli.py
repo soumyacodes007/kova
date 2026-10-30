@@ -268,7 +268,7 @@ def main(argv: list[str] | None = None) -> None:
 
     ch = cmds.add_parser("challenge").add_subparsers(dest="sub", required=True)
     new = ch.add_parser("new", help="generate a hidden part and its drawing")
-    new.add_argument("--family", default="plate", choices=["plate", "flange"])
+    new.add_argument("--family", default="plate", choices=["plate", "flange", "wafer_chuck"])
     new.add_argument("--seed", type=int, default=None, help="private seed (default: random)")
     new.add_argument("--clean", action="store_true", help="skip the scan look (crisp drawing)")
     new.set_defaults(fn=_challenge_new)

@@ -117,7 +117,57 @@ def flange_source(drawn: dict[str, float], mode: str = "honest", label: str = ""
     )
 
 
-SOURCES = {"plate": plate_source, "flange": flange_source}
+_WAFER_CHUCK = '''"""{header}"""
+{imports}import math
+
+from build123d import Align, Compound, Cylinder, Pos
+
+DRAWN = {drawn!r}  # values read off the drawing (ring counts are the holes counted on it)
+
+
+def build_part(overrides):
+{body}    t = p["thickness"]
+    part = Cylinder(p["plate_diameter"] / 2, t, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # (circle diameter, hole diameter, hole count), centre outward; hole 1 of each circle on +X
+    circles = [("pin_circle_diameter", "pin_hole_diameter", 3),
+               ("ring1_diameter", "vacuum_hole_diameter", int(DRAWN["ring1_count"]))]
+    if "ring2_diameter" in DRAWN:
+        circles.append(("ring2_diameter", "vacuum_hole_diameter", int(DRAWN["ring2_count"])))
+    if "mount_circle_diameter" in DRAWN:
+        circles.append(("mount_circle_diameter", "mount_hole_diameter", 4))
+    cutters = []
+    for circle, hole, n in circles:
+{radius}        for k in range(n):
+            a = 2 * math.pi * k / n
+            cutters.append(Pos(r * math.cos(a), r * math.sin(a), t / 2) * Cylinder(p[hole] / 2, 3 * t))
+    return part - Compound(cutters)
+'''
+
+_RADIUS_RULE = '        r = p[circle] / 2\n'
+_RADIUS_PROPORTIONAL = '''\
+        # every circle kept at the drawn *fraction* of the plate diameter, not at its own edited diameter
+        r = DRAWN[circle] / DRAWN["plate_diameter"] * p["plate_diameter"] / 2
+'''
+
+
+def wafer_chuck_source(drawn: dict[str, float], mode: str = "honest", label: str = "") -> str:
+    if mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}")
+    body = {
+        "constant": "    p = dict(DRAWN)  # ignores overrides\n",
+        "wrong_holes": "    p = {**DRAWN, **overrides}\n    p['vacuum_hole_diameter'] = p['vacuum_hole_diameter'] * 1.3\n",
+        "timeout": "    while True:\n        pass\n    p = {}\n",
+    }.get(mode, "    p = {**DRAWN, **overrides}\n")
+    return _WAFER_CHUCK.format(
+        header=f"CADRecover wafer chuck solution ({label or mode})",
+        imports="import socket  # forbidden: no network in a CAD submission\n" if mode == "crash" else "",
+        drawn={k: float(v) for k, v in drawn.items()},
+        body=body,
+        radius=_RADIUS_PROPORTIONAL if mode == "proportional" else _RADIUS_RULE,
+    )
+
+
+SOURCES = {"plate": plate_source, "flange": flange_source, "wafer_chuck": wafer_chuck_source}
 
 
 def source_for(family: str, drawn: dict[str, float], mode: str = "honest", label: str = "") -> str:

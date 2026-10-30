@@ -84,7 +84,8 @@ class MockNoisy(Strategy):
         _require_family(challenge)
         drawn = dict(_oracle_read(challenge))
         rng = random.Random(int(hashlib.sha256(job_id.encode()).hexdigest(), 16))
-        hole_key = "bolt_hole_diameter" if challenge.family == "flange" else "hole_diameter"
+        hole_key = {"flange": "bolt_hole_diameter", "wafer_chuck": "vacuum_hole_diameter"}.get(
+            challenge.family, "hole_diameter")
         roll, notes = rng.random(), "read cleanly"
         if roll < 0.15:
             drawn[hole_key] += 0.5

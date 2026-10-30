@@ -127,11 +127,11 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 7: Families, audits, robustness
 
-**Status:** done (flange; wafer chuck and chamber not started) · **Done when:** diagnostic miners earn about 0, an honest audit passes, and a swapped engine fails.
+**Status:** done (flange and wafer chuck; chamber remains uncommitted stretch work) · **Done when:** diagnostic miners earn about 0, an honest audit passes, and a swapped engine fails.
 
 - [x] Flange family (passes its reference self-test first): `tests/cad/test_flange_evaluator.py` on plain 6-bolt, hubbed 4-bolt, hubbed 8-bolt → 100 / 75 / 25 / 0 (plus proportional bolt circle 25, wrong bore 0, wrong bolt count 0)
-- [ ] Wafer chuck *(stretch, not started)*
-- [ ] Multi-port vacuum chamber *(stretch, not started)*
+- [x] Wafer chuck *(stretch)*: reference, drawings, discriminative edits, diagnostic templates and real-solid 100/75/25/0 self-test; see prerequisite verification below
+- [ ] Multi-port vacuum chamber *(stretch, existing work preserved uncommitted; full live done-when not proven)*
 - [~] Held-out or feature-composed family against template solvers (REVIEW #3): **decision recorded, not solved** (see Decisions)
 - [x] Auditor: committed engine image → hidden tasks → compare → zero on failure (`audit/auditor.py`, `cadrecover auditor run`)
 - [x] Audit pass rule defined and documented (REVIEW #5): mean audit Q over 3 fresh hidden tasks ≥ live mean Q − 10
@@ -175,7 +175,7 @@ For each phase: tick items only with evidence (a command plus its result). List 
 Swapped engine (miner serves oracle, commits the constant engine): audit 25 vs live 100 -> FAIL -> weight revoked on chain. The real strategies (claude-vision) are not measured yet: they wait for the API key.
 
 **Not done / gaps:**
-- Wafer chuck and vacuum chamber (stretch).
+- Vacuum chamber remains uncommitted stretch work; the live hidden-challenge/sandbox/diagnostic/audit done-when has not been run for it.
 - Template solvers (REVIEW #3) remain an **open risk**: see Decisions.
 - Flange coverage uses a ledger waiver for a draftwright false negative (`holes:bore.*`, `holes:location.*`, `bosses:boss_height.length`): the dimensions are drawn and still enforced through `required_labels`; waived entries are reported in `coverage.waived`. Plate is unaffected.
 - Flange: groove, separate bolt-circle and hub-height measurements not built (IoU covers hub height).
@@ -193,10 +193,29 @@ Swapped engine (miner serves oracle, commits the constant engine): audit 25 vs l
 
 ---
 
+## Stage 2 prerequisite: wafer chuck (2026-10-30)
+
+**Status:** done. Existing wafer chuck work is isolated from the vacuum-chamber and frontend work in a wafer-only commit on `a/phase-12-wafer-chuck`.
+
+- [x] Pure deterministic wafer-chuck specification, CAD geometry, pipeline/CAD/evaluator registration, miner templates and CLI family registration.
+- [x] Real-solid self-test reproduces **100 / 75 / 25 / 0** for one vacuum ring plus mounting holes, two vacuum rings, and two rings plus mounting holes. Evidence: `tests/cad/test_wafer_chuck_evaluator.py::test_correct_model_scores_100`, `test_one_edit_wrong_scores_75`, `test_constant_model_scores_25`, `test_wrong_hole_size_scores_0` all passed for every parametrized variant in the full CAD suite below. Proportional-pattern and wrong-count diagnostics also pass their expected 25/0 assertions.
+- [x] Drawing coverage tests enforce each pattern's count, diameter and bolt-circle diameter; missing dimensions fail; only the existing disc-height ledger false negative is waived, while the thickness label remains required.
+- [x] Three full suites run **separately and sequentially in WSL**, without weakening checks or tests:
+  - `~/.cadrecover/envs/services/bin/python -m pytest tests/services -q` -> **177 passed, 1 warning in 61.69s** (FastAPI/httpx deprecation).
+  - `~/.cadrecover/envs/cad/bin/python -m pytest tests/cad -q` -> **144 passed, 1 skipped in 402.76s**. The skip is the missing-second-ring test on a single-ring wafer variant; the two-ring cases run and pass.
+  - `~/.cadrecover/envs/drawing/bin/python -m pytest tests/drawing -q` -> **11 passed, 1 warning in 526.98s**.
+
+**Decisions:** hole-circle diameters are independent parameters rather than fixed fractions of plate diameter; structural ring counts are read from the drawing and never edited. This makes proportional-template diagnostics fail hidden edits and preserves the discriminative rules. No protocol shape changes. C-owned existing wafer template/strategy/CLI changes are included with the ownership request recorded in `notes/shared.md` by B.
+
+**Not done / gaps:** vacuum-chamber code, axis-measurement changes, its registrations/templates/tests and unrelated frontend work remain untouched and uncommitted. The full live chamber done-when has not been demonstrated; its five-port drawing emits draftwright ScaleCompletenessWarning: structurally unreadable (annotation_ink_overlap, annotation_overlap), so it is explicitly excluded from this prerequisite commit. These counts record the prerequisite baseline; Stage 2 service changes made concurrently require their own final suite run. `git pull` was attempted by B at session start and reported that the current branch had no upstream; no remote changes were applied.
+
+---
+
 ## Session log (newest first)
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-30 | a/phase-12-wafer-chuck | Isolated existing wafer family and miner integration; preserved chamber/frontend WIP | services 177 passed; cad 144 passed, 1 skipped; drawing 11 passed, 1 warning | Stage 2 hill runner may cycle plate/flange/wafer_chuck; chamber remains stretch |
 | 2026-10-29 | b/phase-6-chain | Flange family, engine images + auditor, pass rule, extra-feature check, checklist tests | cad 61, services 131+, drawing 5 | Feature-composed generator; wafer chuck (stretch) |
 | 2026-10-29 | a/phase-3-evaluator (+ fix on c/phase-4-miner) | Protocol 0.2.0, edit sampler, sandbox image + runner, evaluator, `cadrecover score`; through-axis position fix | cad 18, services sandbox 4 | Phase 7: flange family, auditor, held-out family |
 | 2026-10-29 | a/phase-2-plate | Plate family, measurement, CAD/drawing workers, pipeline, CLI `challenge new/show`, fixture | services 16, cad 4, drawing 2: all passed | Phase 3: sandboxed rebuilds, discriminative edit sampler, IoU/D checks, the 100/75/25/0 self-test on real solids |

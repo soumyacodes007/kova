@@ -18,9 +18,10 @@ from pathlib import Path
 
 from build123d import export_step
 
-from cadrecover.challenges.families import flange, flange_spec, plate, plate_spec
+from cadrecover.challenges.families import flange, flange_spec, plate, plate_spec, wafer_chuck, wafer_chuck_spec
 
-FAMILIES = {"plate": (plate_spec, plate), "flange": (flange_spec, flange)}
+FAMILIES = {"plate": (plate_spec, plate), "flange": (flange_spec, flange),
+            "wafer_chuck": (wafer_chuck_spec, wafer_chuck)}
 
 
 def _sha256(path: Path) -> str:

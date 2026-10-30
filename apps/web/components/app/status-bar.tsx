@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 import { clientPath, type Status } from "@/lib/api";
+import type { Hill } from "@/lib/hill-types";
 
 type State = { kind: "loading" } | { kind: "offline" } | { kind: "ok"; status: Status; at: number };
 
@@ -55,6 +57,57 @@ function Item({ label, children, tone }: { label: string; children: React.ReactN
   );
 }
 
+/** The champion and the running match on /hill routes. Stays empty while /v1/hill is missing or fails. */
+function useHill(active: boolean): Hill | null {
+  const [hill, setHill] = useState<Hill | null>(null);
+  useEffect(() => {
+    if (!active) return;
+    let stop = false;
+    async function tick() {
+      try {
+        const res = await fetch(clientPath("/v1/hill"), { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const next = (await res.json()) as Hill;
+        if (!stop) setHill(next);
+      } catch {
+        if (!stop) setHill(null);
+      }
+    }
+    tick();
+    const id = setInterval(tick, POLL_MS);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, [active]);
+  return active ? hill : null;
+}
+
+function HillItems() {
+  const hill = useHill(usePathname().startsWith("/hill"));
+  if (!hill) return null;
+  const { champion, live_match: m } = hill;
+  return (
+    <>
+      {champion && (
+        <Link href={`/hill/models/${champion.fingerprint}`} className="flex items-baseline gap-1.5 whitespace-nowrap hover:underline">
+          <span className="text-ink-soft">champion</span>
+          <span className="text-ink">{champion.name}</span>
+          {champion.mean_quality != null && <span className="text-accent">{champion.mean_quality.toFixed(1)}</span>}
+        </Link>
+      )}
+      {m && m.status === "running" && (
+        <Link href={`/hill/match/${m.match_id}`} className="flex items-baseline gap-1.5 whitespace-nowrap hover:underline">
+          <span className="text-ink-soft">match</span>
+          <span className="text-ink">
+            {m.tasks_done}/{m.tasks_total}
+          </span>
+        </Link>
+      )}
+    </>
+  );
+}
+
 const LIVE = new Set(["dispatching", "collecting", "evaluating"]);
 
 export function StatusBar() {
@@ -88,6 +141,9 @@ export function StatusBar() {
             )}
             <Item label="commit-reveal">{state.status.chain.commit_reveal_enabled ? "on" : "off"}</Item>
             <Item label="miners">{state.status.counts.miners}</Item>
+            <Suspense fallback={null}>
+              <HillItems />
+            </Suspense>
             {run && (
               <Link href={`/arena/${run.run_id}`} className="flex items-baseline gap-1.5 whitespace-nowrap hover:underline">
                 <span className="text-ink-soft">latest round</span>

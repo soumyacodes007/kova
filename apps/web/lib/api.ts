@@ -23,7 +23,11 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 export async function api<T>(path: string): Promise<ApiResult<T>> {
   try {
     const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
-    if (res.status === 404) return { ok: false, error: "not found" };
+    if (res.status === 404) {
+      // FastAPI's own "Not Found" means the route does not exist; any other detail is a missing record
+      const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+      return { ok: false, error: body?.detail === "Not Found" ? "route missing" : "not found" };
+    }
     if (!res.ok) return { ok: false, error: `API answered ${res.status}` };
     return { ok: true, data: (await res.json()) as T };
   } catch {

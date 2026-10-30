@@ -32,7 +32,7 @@ export function Nav() {
           <a href="#check" className="transition-colors hover:text-ink">The check</a>
           <a href="#how" className="transition-colors hover:text-ink">How it works</a>
           <a href="#proof" className="transition-colors hover:text-ink">Proof</a>
-          <Link href="/arena" className="text-ink transition-colors hover:text-accent">Live arena</Link>
+          <Link href="/tracks" className="text-ink transition-colors hover:text-accent">Tracks</Link>
         </nav>
         <PrimaryLink href="#run">Run the demo</PrimaryLink>
       </Container>

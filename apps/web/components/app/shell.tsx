@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { Mark } from "@/components/landing/ui";
 
-import { NAV } from "./nav";
+import { SHARED_NAV, TRACKS } from "./nav";
 import { NavLinks } from "./nav-links";
 import { StatusBar } from "./status-bar";
 
@@ -18,7 +18,7 @@ export function AppHeader() {
         <nav aria-label="App" className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto text-[14px]">
           {/* the active-page highlight reads the URL, so it streams in after the static shell */}
           <Suspense
-            fallback={NAV.map((n) => (
+            fallback={[...Object.values(TRACKS).map((t) => ({ href: t.home, label: t.label })), ...SHARED_NAV].map((n) => (
               <Link key={n.href} href={n.href} className="whitespace-nowrap rounded-sm px-2.5 py-1.5 text-ink-soft">
                 {n.label}
               </Link>

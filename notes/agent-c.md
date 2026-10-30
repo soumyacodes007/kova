@@ -146,6 +146,45 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 | Date | Branch | What changed | Tests run | Next |
 | --- | --- | --- | --- | --- |
+| 2026-10-30 | c/phase-9-web | Track B pages checked and fixed (sample links, 404 split), live polling, status bar items, contract guard | tsc, lint, build clean; HTTP sweep 18 routes | Browser pass at both viewports; live Track A round |
+| 2026-10-30 | shared working tree (root coordinating phase-12 branches) | Track B five read endpoints, shared Track A SetResult/ModelFile types, active-task disclosure checks and GLB serving, metadata-check/model-submit/hill-run CLI; OpenAPI/TS regenerated | WSL node.exe TypeScript noEmit, ESLint and Next production build passed; pytest pending A's environment lock | Run API/CLI tests, verify real hill run in browser; no testnet spend or live deployment authorized |
 | 2026-10-29 | b/phase-6-chain | Read API + SSE + TS types, doctor/status/task sample/events/api serve, rich logs, `make demo` | services 138 passed; gate run EXIT=0 | Wire claude-vision; Phase 9 arena on the real API |
 | 2026-10-29 | c/phase-4-miner | Signed FastAPI miner, mock/diagnostic strategies, templates, `miner run`, `scripts/run-miners.sh` | services miner protocol 8 passed; live round Q 100 | Wire `ClaudeVision` when the API key arrives; Phase 8 after the Phase 6/7 gate |
 | 2026-10-29 | a/phase-0-protocol | Job envelopes; `cli.py` created with B's and A's commands (C owns the file; see `shared.md` Requests) | 10 passed | Phase 4: FastAPI miner + strategy 1 against the sample fixture |
+
+## Phase 12: Track B API and CLI
+
+**Status:** in progress; no end-to-end claim until the real catalog run and all suites pass.
+
+- [ ] Five read routes match `docs/api/hill-contract.md`, with GLBs and Track A disclosure rules.
+- [ ] CLI `model check`, `model submit` and `hill run` use B's precheck, hotkey commitments and shared-budget runner.
+- [ ] Real `/hill`, `/hill/leaderboard`, `/hill/match/<id>` browser verification (no fixtures).
+
+**Implemented, verification pending:** API storage queries, the five routes and read-only GLB route; public errors/checks/values/reference models withheld on active tasks; model event history; generated OpenAPI/TypeScript. Tests cover live/retired disclosure, 404s and local/test separation. No miner source runs in the API. Runtime settings use `CADRECOVER_API_NETWORK=local|test` (default local); the same fingerprint is separate on each network.
+
+**Decisions:** testnet CLI submissions and catalog runs require the operator's explicit `--allow-testnet-spend` opt-in. Catalog runs print the runner's complete result, including actual recorded spend. The API uses the canonical scoring formula when private serialized SetScore records omit the computed `q` property. Hill contract draft 0.2 makes `MatchSummary.seed` nullable: exposing a deterministic generation seed would reveal active ground truth, so every API surface hides the seed until the match is decided and every task retired; the frontend handles null explicitly. Model events from another hotkey or later commitment do not become the original model's status history. These changes are coordinated with B in `notes/shared.md`.
+
+**Evidence so far:** all commands invoked from WSL. `node.exe node_modules/typescript/bin/tsc --noEmit` and `node.exe node_modules/eslint/bin/eslint.js` exited 0; `node.exe node_modules/next/dist/bin/next build` exited 0, listing `/hill`, `/hill/leaderboard`, `/hill/match/[id]`, models, matches and submit routes. `~/.cadrecover/envs/services/bin/python scripts/export-openapi.py --types python` wrote both contract artifacts successfully.
+
+**Not done:** services tests pending A's three-suite prerequisite lock; no real hill crowning, live artifact/browser evidence, local model commit/readback or testnet commit→reveal verified by C yet. Miner deployment remains B's disabled-by-default integration; this frontend does not claim queued models were evaluated. Existing user changes in the frontend and CLI are preserved.
+
+## Phase 9b: Track B pages, live updates, status bar (C, 2026-10-30)
+
+**Status:** pages built and checked over HTTP against the live read API; **not checked in a browser** (this session had no browser tool).
+
+- [x] `cd apps/web && npx tsc --noEmit` exit 0; `npm run lint` clean; `npm run build` exit 0, route table lists `/hill`, `/hill/leaderboard`, `/hill/matches`, `/hill/match/[id]`, `/hill/models/[fingerprint]`, `/hill/submit`, `/tracks` (18 pages).
+- [x] No em or en dashes in any rendered page text (regex over the HTML minus scripts, 18 routes: 0). The only hits in `apps/web` source are the Next-generated `AGENTS.md`.
+- [x] HTTP sweep of `/`, `/tracks`, `/arena`, `/arena/run_48c02312ed`, `/leaderboard`, `/runs`, `/chain`, `/docs`, `/hill`, `/hill/leaderboard`, `/hill/matches`, `/hill/submit`, `/hill/match/<id>` and the five Track B routes with `?sample=1`: all 200, none crashed; the "Sample data." banner appears only with `?sample=1` and on every sample page.
+- [x] Sample mode keeps `?sample=1` on nav, track switch, and in-page links (was a bug: the nav dropped it; fixed in `components/app/nav-links.tsx`).
+- [x] Offline (API process stopped): `/leaderboard`, `/chain`, `/hill`, `/arena`, `/runs` return 200 with the "not running" or "No live data" panel and no crash. API restarted after.
+- [x] Backend now serves Track B (`/v1/hill` returns the empty hill). Live `/hill`, `/hill/leaderboard`, `/hill/matches` render the real empty state. A missing record (`/hill/match/m_nope`, `/hill/models/abc`) now says "No such match/model"; `lib/api.ts` separates FastAPI's `Not Found` (route missing, keeps the "backend isn't live" panel) from a record 404.
+- [x] Types regenerated (`export-openapi.py`, `gen-ts-types.py`). `lib/hill-contract-check.ts` compares the generated schemas with `lib/hill-types.ts` at build time. Two differences are raised in `shared.md`: optional-vs-required, and `Hill.families` is `string[]`.
+- [x] Live updates (`components/hill/live.tsx`): polls `/api/v1/events?kind=hill&after=<last id>` every 2.5 s only while a match is running; `/hill` calls `router.refresh()`, `/hill/match/[id]` refetches the match, on `hill.task_scored`, `hill.crowned`, `hill.defended`. Proxy path `/api/v1/events?kind=hill` returns 200 through the Next rewrite. SSE not used.
+- [x] Status bar (`components/app/status-bar.tsx`): on `/hill*` shows "champion <name> <score>" and "match <done>/<total>" from `/api/v1/hill`; hidden when the endpoint fails.
+
+**Not done:**
+- No browser check at 1440x900 or 375x812: no console-error check, no `scrollWidth === innerWidth` check, no click on a match tile to see the side-by-side panel update. Needs a session with the browser pane.
+- Live polling and the status-bar items are only exercised against an empty hill (no champion, no match), so the running-match path has no live evidence; sample mode never polls by design.
+- Task 4 (watch a live Track A round via `make demo`) not run. Task 8 (arena section view, `/try`) not started.
+- The working tree is shared with a coordinating session that edits `hill-types.ts`, `docs/api/hill-contract.md`, `lib/api-types.ts` and these notes concurrently (contract now draft 0.2: `seed` is null until a match is decided; the pages already handle it).
+

@@ -104,7 +104,7 @@ For each phase: tick items only with evidence (a command plus its result). List 
 - [ ] Parameter slider: queue a rebuild on release; swap the model when the result arrives
 
 **Done-when evidence:**
-**Done:**
+**Done:** 2026-10-30 scaffold only: `create-next-app` in `apps/web` (Next 16.4.3, React 19.3, TypeScript, Tailwind 4, ESLint, App Router, `@/*` alias); `npm run lint` clean, `npm run build` passes. Uses npm, not pnpm (pnpm isn't installed on this machine). `lib/api-types.ts` kept. No pages, R3F or shadcn yet.
 **Not done / gaps:**
 
 ---

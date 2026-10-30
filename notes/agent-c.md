@@ -97,25 +97,30 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 9: Arena on the real API *(only after the backend gate)*
 
-**Status:** blocked by gate · **Done when:** a live round plays in the browser with no fixture data.
+**Status:** in progress (pages built on recorded rounds; a live round not yet watched in the browser) · **Done when:** a live round plays in the browser with no fixture data.
 
-- [ ] Next.js shell, status bar, React Three Fiber viewer loading validator GLBs
-- [ ] /arena/[runId]: drawing, miner strip, live events, per-set checks, ghost overlay, section view, failure focus
+- [x] Next.js shell, status bar, React Three Fiber viewer loading validator GLBs (`components/app/`, `components/arena/`; status bar polls `/v1/status` every 5 s)
+- [x] /arena/[runId]: drawing, miner strip, round events (polled every 2.5 s while live), per-set V/C/G/D/Q and failed checks, reference ghost overlay, failure focus (click a check: red ring + camera framing). Not done: section view
 - [ ] Parameter slider: queue a rebuild on release; swap the model when the result arrives
 
 **Done-when evidence:**
 **Done:** 2026-10-30 scaffold only: `create-next-app` in `apps/web` (Next 16.4.3, React 19.3, TypeScript, Tailwind 4, ESLint, App Router, `@/*` alias); `npm run lint` clean, `npm run build` passes. Uses npm, not pnpm (pnpm isn't installed on this machine). `lib/api-types.ts` kept. No pages, R3F or shadcn yet.
 2026-10-30 landing page `/` (static): tokens from the supplied Cloudflare DESIGN.md (light only, one orange accent, ink text on orange for AA contrast), Geist; R3F viewer (three 0.187, fiber 9, drei 10) showing real GLBs from `apps/web/scripts/landing-assets.py` (flange seed 1000; candidate with bolt circle +0.8 mm: IoU 0.998, D 1.0, critical fail, 6 holes 0.400 mm off). Every number is sourced in `lib/landing-data.ts`. `npm run lint` clean, `npm run build` passes; checked at 1440 and 375 px (no horizontal scroll, no console errors). The "Next: king of the hill" section is labelled Planned.
+2026-10-30 app pages on the real read API (`make api`, proxied through `/api/v1/*` by a Next rewrite): /arena (redirects to the latest round), /arena/[runId], /leaderboard, /runs (+ /runs/[id] redirects to the arena), /chain, /docs. Evidence: `curl` of each page from the dev server against the 29 Oct DB: /leaderboard shows mock-oracle and both audit passes; /runs lists 7 rounds; /chain shows batch wb_5bb804178e with receipts and 4 audits; /arena/run_48c02312ed renders with real GLBs (`/api/v1/runs/.../s0.candidate.glb` 200). In the browser: wrong-holes miner shows 4 red markers exactly on the holes; clicking `hole_2.size` frames that hole. `npx tsc --noEmit`, `npm run lint` clean; `npm run build` passes (pages are partial prerenders with streamed data).
 **Not done / gaps:**
+- No live round watched in the browser yet (needs `make demo` running with `make api`); events are polled, not SSE.
+- Parameter slider: needs a backend rebuild endpoint; the API is read-only.
+- Section view not built. The offline panel (API down) is written but not exercised.
+- Arena viewer has no wheel zoom on purpose (page scroll); camera framing is a fixed iso direction.
 
 ---
 
 ## Phase 10: Trust pages *(with A and B)*
 
-**Status:** blocked by gate · **Done when:** a judge can trace any score to its checks and its chain receipt.
+**Status:** mostly built · **Done when:** a judge can trace any score to its checks and its chain receipt.
 
-- [ ] /leaderboard, /security (attack chart from measured numbers), /audits, /runs/[id]
-- [ ] Block numbers on every weight set, commitment and audit; reproduce-score command
+- [x] /leaderboard, /runs/[id] (= arena), audits (on /chain). /security not a page: the landing page carries the measured attack chart
+- [x] Block numbers on every weight receipt, commitment and audit (/chain); reproduce command on the arena (`cadrecover score solution.py --task <id>`)
 
 **Done-when evidence:**
 **Done:**

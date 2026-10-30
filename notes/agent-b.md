@@ -140,3 +140,35 @@ For each phase: tick items only with evidence (a command plus its result). List 
 | 2026-10-29 | b/phase-6-chain | Bootstrap, ServeAxon, metagraph discovery, SetWeights + readback + receipts, engine commitments, audit-failed revoke, drand-stall handling | services 131 passed; live readbacks at blocks 15596, 29321, 32749 | Testnet once test TAO arrives; commit → reveal receipts there |
 | 2026-10-29 | c/phase-4-miner (B commit) | Validator round, signed client, static discovery, artifact server, aggregation, DB writers, `validator run` / `leaderboard` | aggregate 4 passed; 5 live rounds | Phase 6: register on localnet, metagraph discovery, `bt.SetWeights` with readback |
 | 2026-10-29 | b/phase-1-setup | 3 envs + locks, compose localnet, SQLite schema, wallets, CLI `setup wallets` / `chain heartbeat`, Makefile | services 12 passed (at merge), heartbeat producing | Phase 5 scheduler against stubs; start testnet funding |
+
+## Phase 12 / Stage 2 Track B — king of the hill (2026-10-30/31)
+
+**Status:** implementation complete, live verification in progress; not claiming the final gate.
+Branch: b/phase-12-hill, atop A prerequisite ca8b9a6. No push.
+
+- [x] Protocol0.3.0 model/hill records and shared Track A viewer shapes. Full services suite: **266 passed, 1 deprecation warning in72.60s**. Latest CLI tests after cap flags: **23 passed in4.60s**.
+- [x] Metadata-only HF precheck: pinned40hex SHA, full safetensors/config,20,000,000,000 byte limit, sorted path:LFSsha fingerprint, duplicate rejection. Live model check Qwen/Qwen2.5-VL-3B-Instruct revision66285546d2b821cf421d4f5eb2576359d3770cd3: **7,509,337,976 bytes**, fingerprint ab78c2768a6df68a539e2c3303b8045bbc21c710d05059edef8d4a005d9e62b5; no weights downloaded.
+- [x] Fixed Chutes harness, single python block, one network retry, usage/latency, atomic spend reservations. Unknown charges keep conservative bounds. Default$3 total/$0.50 match; CLI configurable. Excludes nonvision/unpriced/Kimi-K3 by default.
+- [x] Real Gemma flange practice smoke ch_bb5f1e95eeddd029: **Q0**, sets0/0/0/0, **$0.00042951**, prompt1646/completion627, latency34.718s. Miner failure: invalid build123d extrude positional call. Scoring unchanged. Runtime log: ~/.cadrecover/runtime/logs/hill-smoke.log.
+- [x] Local model submit miner1: hotkey-signed commitment readback **block2274**, watcher submitted/prechecked/queued; amount0 fee explicitly simulated; deploy disabled detail.
+- [x] SHA256 entropy and deterministic task plan; post-commit block enforced; plate/flange/wafer_chuck cycling. Paid source cache before sandbox; per-side evaluation cache only within match. Interrupted matches remain hidden for resume.
+- [x] Strict margin>2, initial floor>=50, ties defend; lineage A..Z,AA; atomic champion/status/decision/retirement/events. Tests cover outage/cache/resume, rollback, shared tasks, rule boundaries, lineage and catalog self-weight receipts.
+- [x] Deploy dry-run GPU24/concurrency4/pinned revision, guarded cleanup executor. **No live deployment**. Disabled due $50 build balance, unverified vision request support/runtime billing upper bound.
+- [ ] Real local catalog3-task matches, crown, actual weight receipts, final browser gate.
+- [ ] Final regression evidence and B/C commits.
+- [ ] Testnet match/commit-reveal receipts: user spend approval not given; no registrations/spend made.
+
+**Decisions:** catalog fingerprint identifies provider ID, not attested weights; miner fingerprint hashes sorted safetensors path:LFSsha lines. Entire MatchSummary.seed object stays null until decision and all tasks retired (public entropy reconstructs private dimensions). Network isolation; spend cap shared across networks. Catalog champion self-weight has explicit reason. Shared board logs all decisions.
+
+**Testnet verified READ-ONLY:** netuid605, owner coldkey5HHKrbRMDmxMU8sEstz6bXLWq7LA1kgKwa7QaDC7UQuW7LMg; owner hotkey5Dr8ujsPL3vkwjFpyYAPLGPvZLhwjexP9MusLiocXUymL7Wf UID0; permitTrue; commit-revealTrue. One neuron. No testnet hill matches/weight batches.
+- Actual register_network inclusion **8336712**, transaction0x867b34c7dfe3a5add1b2fba1136590cbb842abc870003764c361b8c28ebc6d99; block0xd28b41609ec865d16a6708c3503825fc3b7da06e0170780de6ae24ec50a88583.
+- Actual start_call605 inclusion **8336717**, transaction0xf633cc11798ac215813230ab8b888f555a828d5143317231ec76f09738e7abfe; block0xbf24b4b93bfb457667b24cd61f2bc715d291f291dfe6960115e528f5e4372b9f.
+- chain-test.json heads8336714/8336719 are later readbacks, not inclusion blocks. File preserved.
+
+**Known gaps:** invalid/duplicate commitments archived in hill_commitments/rejection events, never overwrite prior model. Custom deploy unverified/disabled. Catalog endpoints cannot attest pinned weights. Spend totals include unknown reservations. Concurrent Track A demo uses shared localnet; preserve its processes.
+
+2026-10-31 verification update: full services suite **270 passed, 1 warning in 77.85s** after provider receipts, pinned harness and required response-schema fixes. Frontend TypeScript, ESLint and production build passed from WSL using installed node.exe. Final CAD then drawing suites running sequentially. Initial match m_95247cd4bbce finished on harness1 at mean0; no crown invented. Harness2 is shared across all new challengers, with the API reference documented above in shared Decisions; fresh catalog run in progress.
+
+Connection proof: actual HTTP200 response ID **1a5d304e0e2349169142cd496af5f73c**, Gemma model, prompt2285/output403, **$0.00042331**, latency31.679s. Saved outside git at ~/.cadrecover/runtime/logs/chutes-connection-proof.json. New hill.provider_response events contain provider IDs/usage/cost only, no credentials/images/source. Unit test verifies receipt correlation and secret omission.
+
+Environment recovery: WSL DNS tunneling resolver10.255.255.254 failed for Chutes and Hugging Face; UDP probes confirmed public resolvers reachable. Temporary /etc/resolv.conf uses1.1.1.1/8.8.8.8; original saved /tmp/cadrecover-resolvconf-before-hill. Chutes catalog HTTP200 afterward. Runtime original credential stays in Downloads and WSL profile reads it directly into the environment without copying/printing it.

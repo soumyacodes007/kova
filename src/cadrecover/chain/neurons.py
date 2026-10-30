@@ -19,7 +19,7 @@ from cadrecover.validator.discovery import MinerEndpoint
 
 def serve_axon(wallet_name: str, port: int, ip: str | None = None, network: str = "local") -> dict:
     """Publish a miner's endpoint (signed by its hotkey) and read it back from the metagraph."""
-    state = load_state()
+    state = load_state(network)
     netuid = state["netuid"]
     w = wallet(wallet_name)
     if ip is None:  # the chain rejects loopback; publish this host's first LAN IP
@@ -61,7 +61,7 @@ def _axon_url(axon, local: set[str]) -> str | None:
 def metagraph_miners(network: str = "local", *, exclude_hotkeys: set[str] | None = None,
                      labels: dict[str, str] | None = None) -> list[MinerEndpoint]:
     """Miners to query: registered neurons serving an axon, minus validators we exclude (e.g. ourselves)."""
-    state = load_state()
+    state = load_state(network)
     exclude = exclude_hotkeys or set()
     with bt.Subtensor(network_url(network)) as sub:
         mg = sub.subnets.metagraph(netuid=state["netuid"], commitments=False)
@@ -78,9 +78,9 @@ def metagraph_miners(network: str = "local", *, exclude_hotkeys: set[str] | None
 
 def submit_weights(weights: dict[int, float], network: str = "local", version_key: int = 0) -> dict:
     """Plan -> execute -> readback. Returns the receipt fields to store."""
-    state = load_state()
+    state = load_state(network)
     netuid = state["netuid"]
-    v = wallet("validator")
+    v = wallet("owner" if network == "test" else "validator")
     with bt.Subtensor(network_url(network)) as sub:
         uids = sorted(weights)
         intent = bt.SetWeights(netuid=netuid, uids=uids, weights=[weights[u] for u in uids], version_key=version_key)
@@ -102,7 +102,7 @@ def submit_weights(weights: dict[int, float], network: str = "local", version_ke
 
 def read_weights(network: str = "local") -> dict:
     """The validator's on-chain weight row (revealed) and any pending timelocked commits."""
-    state = load_state()
+    state = load_state(network)
     netuid = state["netuid"]
     vuid = state["neurons"]["validator"]["uid"]
     with bt.Subtensor(network_url(network)) as sub:

@@ -24,6 +24,16 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 
 ## Contracts (`src/cadrecover/protocol/`)
 
+2026-10-31 B responds to C schema question: protocol0.3.0 hill response records will mark serialization defaults required in JSON Schema (wire already always included these keys); Hill.families becomes list[Family] literal union. No wire-field/scoring change; regenerate OpenAPI/TS and verify contract guard.
+
+2026-10-30 C → B (contract question, no change made): the generated OpenAPI marks every defaulted hill field optional (`MatchSummary.tasks_done?`, `verdict?`, `Model.mean_quality?`, `Entry.sets?` and more) though the server always sends them, and types `Hill.families` as `string[]` where the contract says the four family literals. C's `apps/web/lib/hill-types.ts` keeps them required/literal; `lib/hill-contract-check.ts` fails the build if any other field drifts. Ask: mark the fields required in the pydantic models (no default, or `json_schema_extra`) and make `families` a `Literal` list.
+
+2026-10-30 BEFORE CODING: hill contract draft 0.1 → 0.2 within planned protocol 0.3.0: MatchSummary.seed is null until match decided/tasks retired. Publishing value or block/drand inputs permits reconstruction of active ground truth from open generator. Actual seed+all entropy inputs remain stored privately in matches. C updates API/TS/frontend null handling; scoring unchanged.
+
+2026-10-30 BEFORE CODING: hill contract fingerprint semantics clarified for source=catalog: SHA256 of `chutes-catalog:<model id>` identifies a provider endpoint, **not verified weights** (catalog has no pinned HF revision); miner fingerprints remain sorted LFS weight hashes. Fields unchanged; C API/frontend consumes source label.
+
+2026-10-30 BEFORE CODING: Track B records per `docs/api/hill-contract.md` draft 0.1; protocol **0.2.0 → 0.3.0**. B adds ModelCommitment, ModelStatus, Model, MatchSummary, MatchTask, Entry, LineageEntry; consumer **agent C** (API/CLI/frontend). Track A SetResult/ModelFile/FailedCheckOut move unchanged to protocol so both tracks share exact shapes without circular imports; C re-exports them from api.models. Read API contract and TS mirror remain field-for-field.
+
 | Contract | Owner | Version | Consumers | Notes |
 | --- | --- | --- | --- | --- |
 | Public challenge record | A | 0.1.0 | C (miner), B (validator) | `protocol/challenge.py` `PublicChallenge`: names + ranges, never values |
@@ -41,6 +51,8 @@ Change log (newest first): `date · contract · old → new version · what chan
 
 ## Handoffs
 
+2026-10-30 A → B/C: wafer chuck prerequisite committed `ca8b9a6` on a/phase-12-wafer-chuck. Sequential baseline suites services177 passed; CAD144 passed/1expected skip; drawing11 passed. Wafer evaluator self-test100/75/25/0 across3variants. B begins b/phase-12-hill atop this commit.
+
 | Date | From → to | What | Where / how to use |
 | --- | --- | --- | --- |
 | 2026-10-29 | B, A, C → all | Backend gate open | `make demo` (tmux) / `DEMO_HEADLESS=1 make demo`; `make api` serves the read API on 127.0.0.1:8000 |
@@ -53,6 +65,10 @@ Change log (newest first): `date · contract · old → new version · what chan
 
 ## Requests (change in a file you don't own)
 
+2026-10-31 B → C: api/hill.py Family literal import/type is a small schema unblock requested by C; B applies it and regenerates the shared OpenAPI/TS. C's frontend otherwise preserved.
+
+2026-10-30 A → C: prerequisite wafer-chuck commit includes wafer dispatch in existing miner/templates.py, miner/strategies.py, cli.py and template tests; C coordinates selective staging. Approved by session task scope.
+
 | Date | From → owner | File | Request | Status |
 | --- | --- | --- | --- | --- |
 | 2026-10-29 | A, B → C | `cli.py`, `miner/templates.py`, `miner/strategies.py`, `miner/engine.py` | B added chain/auditor commands; A added `flange_source`, family dispatch and the engine entrypoint; C restyled the CLI in Phase 8 | done; logged |
@@ -60,12 +76,30 @@ Change log (newest first): `date · contract · old → new version · what chan
 
 ## Blockers
 
+2026-10-30 A: vacuum_chamber remains uncommitted user WIP. Drawing suite warns structural unreadability (annotation_ink_overlap, annotation_overlap); positive end-to-end done-when not established. Excluded from Track B task cycling; preserve files for later repair.
+
+2026-10-30 B: Custom Chutes deployment remains disabled. Official SDK README requires at least $50 account balance to build images (account budget is $5). Docs include a vision example but upstream vLLM template ChatMessage.content is str, so image-array support and runtime billing upper bound remain unverified. Sources: https://github.com/chutesai/chutes and https://github.com/chutesai/chutes/blob/main/chutes/chute/template/vllm.py . Catalog inference unaffected. Live deployment requires user's OK; no live deploy executed.
+
+2026-10-30 B: Testnet 605 registered/started per supplied state; old funding blocker below is historical. This session has no authorization for testnet spending or neuron registration; do not invoke either.
+
 | Date | Agent | Blocked on | Waiting for | Resolved? |
 | --- | --- | --- | --- | --- |
 | 2026-10-29 | B | Testnet registration | Test TAO for owner coldkey `5HHKrbRMDmxMU8sEstz6bXLWq7LA1kgKwa7QaDC7UQuW7LMg` (subnet cost τ1.0) | no |
 | 2026-10-29 | C | Real `claude-vision` miner | User's Anthropic API key | no |
 
 ## Decisions
+
+2026-10-31 B: store hill.provider_response events for successful paid HTTP responses: provider response/request IDs when supplied, endpoint, model, usage, spend ledger ID and accounted cost. Purpose: correlate operator run logs with Chutes account usage. No credentials/images/source/private task values in these events; provider IDs are not cryptographic weight attestations. Existing calls without IDs remain distinguishable as older records.
+
+2026-10-31 B (Track B harness v2): the fixed catalog prompt gains a short build123d 0.13.0 algebra-mode reference and one worked example (generic values, every call executed on 0.13.0 first). Why: under v1 every Gemma reply failed on invented API (Align from ints, `BuildPart.add_cylinder`, positional `extrude`), so the hill measured prompt luck, not weights; on fresh practice tasks v2 lifted Gemma from 0 to flange 100, wafer chuck 100, plate 18.1. Still ONE prompt for every model; scoring and checks unchanged. Each match pins the harness it started with (`hill_settings` `<network>.harness.<match_id>`, also in the `hill.match_started` payload); matches from before versioning count as v1 and finish on v1, so m_95247cd4bbce stays consistent. Eligibility: one decided match per catalog model per harness version, so a harness change re-admits catalog models once; it is never triggered by a model's own poor result. New CLI flag `hill run --model <id>` (repeatable) enters only the named catalog models. Affects: B (runner), C (none: contract unchanged).
+
+2026-10-30 B/C: testnet CLI submission/hill spend requires explicit --allow-testnet-spend; no testnet operation invoked this session. CADRECOVER_API_NETWORK selects local/test read state, including hill rows and chain state file. A stale local chain.json was backed up outside git before bootstrapping a fresh localnet; chain-test.json untouched.
+
+2026-10-30 Catalog endpoint identities are derived from provider IDs and are not weight attestations; champion outputs are cached only within the same match, never reused on fresh drawings or across catalog revisions. Local/test hill rows and API configuration are isolated by network; global spend cap remains shared across networks.
+
+2026-10-30 Track B: strict challenger mean > champion mean + 2.0; initial crown requires mean >= 50. Default 10 tasks cycle plate/flange/wafer_chuck. Persistent Chutes cap $3 total and $0.50 per match, reserve conservative request bounds before sending; unknown costs stay reserved; Kimi-K3 excluded by default. Catalog champion receives validator self-weight with explicit reason; miner models stay queued when deployment disabled. Runtime evidence stays outside git. Affected: B runner/storage/chain, C API/CLI/frontend.
+
+2026-10-30 Wafer chuck hole circles edit independently of plate diameter; ring counts structural/read from drawing, never edited; disc-height ledger waiver only, required thickness label still mandatory. Discriminative edits defeat proportional templates without hiding dimensions. Affected: A, C miners, B hill family cycling.
 
 | Date | Decision | Why | Affects |
 | --- | --- | --- | --- |

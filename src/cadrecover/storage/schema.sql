@@ -126,3 +126,32 @@ CREATE TABLE IF NOT EXISTS audits (
 
 CREATE INDEX IF NOT EXISTS events_run ON events (run_id, event_id);
 CREATE INDEX IF NOT EXISTS evaluations_miner ON evaluations (miner_hotkey, evaluated_at);
+
+-- Track B. JSON is the versioned public contract; private seed inputs/evaluations stay separate.
+CREATE TABLE IF NOT EXISTS models (
+ fingerprint TEXT NOT NULL, model_json TEXT NOT NULL, network TEXT NOT NULL CHECK(network IN ('local','test')), PRIMARY KEY(fingerprint,network)
+);
+CREATE TABLE IF NOT EXISTS matches (
+ match_id TEXT PRIMARY KEY, summary_json TEXT NOT NULL, block_number INTEGER NOT NULL,
+ drand_randomness TEXT NOT NULL, network TEXT NOT NULL CHECK(network IN ('local','test'))
+);
+CREATE TABLE IF NOT EXISTS match_tasks (
+ match_id TEXT NOT NULL REFERENCES matches(match_id), task_index INTEGER NOT NULL,
+ challenge_id TEXT NOT NULL REFERENCES challenges(challenge_id), task_json TEXT NOT NULL,
+ challenger_evaluation_json TEXT, champion_evaluation_json TEXT,
+ PRIMARY KEY(match_id,task_index), UNIQUE(challenge_id)
+);
+CREATE TABLE IF NOT EXISTS lineage (
+ rev TEXT NOT NULL, entry_json TEXT NOT NULL, network TEXT NOT NULL CHECK(network IN ('local','test')), PRIMARY KEY(rev,network)
+);
+CREATE TABLE IF NOT EXISTS hill_settings (key TEXT PRIMARY KEY,value_json TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS hill_spend (
+ id TEXT PRIMARY KEY, match_id TEXT NOT NULL, model_id TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'inference',
+ reserved_usd REAL NOT NULL, cost_usd REAL NOT NULL, state TEXT NOT NULL,
+ prompt_tokens INTEGER, completion_tokens INTEGER, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS hill_commitments (
+ network TEXT NOT NULL,hotkey TEXT NOT NULL,commit_block INTEGER NOT NULL,
+ raw_json TEXT NOT NULL,full_fingerprint TEXT,error TEXT,
+ PRIMARY KEY(network,hotkey,commit_block)
+);

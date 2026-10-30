@@ -30,8 +30,15 @@ class ChainError(RuntimeError):
     pass
 
 
-def load_state() -> dict:
-    return json.loads(STATE_FILE.read_text()) if STATE_FILE.exists() else {}
+def load_state(network: str = "local") -> dict:
+    # Keep testnet isolated from local bootstrap; never create or register neurons here.
+    network_url(network)
+    file = STATE_FILE if network == "local" else paths.HOME / "chain-test.json"
+    state = json.loads(file.read_text()) if file.exists() else {}
+    if network == "test" and state:
+        state.setdefault("neurons", {}).setdefault("validator", {
+            "uid": 0, "hotkey": state["owner_hotkey"]})
+    return state
 
 
 def save_state(state: dict) -> None:

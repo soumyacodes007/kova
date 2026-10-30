@@ -27,3 +27,6 @@ __all__ = [
     "set_quality", "task_quality", "JobAccepted", "JobRequest", "JobResult", "JobStatus",
     "CAD_ENGINE", "PROTOCOL_VERSION", "SCORING_VERSION", "MinerIdentity", "WeightBatch", "WeightReceipt",
 ]
+
+from cadrecover.protocol.hill import (ModelCommitment, ModelStatus, Model, MatchSummary, MatchTask, Entry, LineageEntry)
+__all__ += ["ModelCommitment", "ModelStatus", "Model", "MatchSummary", "MatchTask", "Entry", "LineageEntry"]

@@ -10,7 +10,7 @@ from pathlib import Path
 from cadrecover import paths
 from cadrecover.protocol import PublicChallenge
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _SCHEMA = Path(__file__).with_name("schema.sql")
 
 
@@ -28,6 +28,7 @@ def connect(db_path: Path | None = None) -> sqlite3.Connection:
     con.executescript(_SCHEMA.read_text())
     if con.execute("SELECT count(*) FROM schema_version").fetchone()[0] == 0:
         con.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+    con.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
     con.commit()
     return con
 
@@ -166,3 +167,45 @@ def failed_audits(con: sqlite3.Connection) -> set[str]:
     for r in rows:
         latest[r["miner_hotkey"]] = r["verdict"]
     return {h for h, v in latest.items() if v == "fail"}
+
+# ---------------------------------------------------------------- Track B writers
+
+def save_model(con, model, network="local"):
+    con.execute("INSERT INTO models VALUES (?,?,?) ON CONFLICT(fingerprint,network) DO UPDATE SET model_json=excluded.model_json",
+                (model.fingerprint, model.model_dump_json(), network))
+    con.commit()
+
+def hill_models(con, network=None):
+    from cadrecover.protocol.hill import Model
+    rows = con.execute("SELECT model_json FROM models" + (" WHERE network=?" if network else ""),
+                       (network,) if network else ())
+    return [Model.model_validate_json(r[0]) for r in rows]
+
+def model_status(con, model, status, *, detail=None, block=None, network="local"):
+    model.status = status
+    if status == "rejected":
+        model.reject_reason = detail
+    save_model(con, model, network)
+    add_event(con, "model.status", {"fingerprint": model.fingerprint, "status": status,
+                                  "detail": detail, "block": block, "network": network})
+    return model
+
+def save_match(con, summary, block_number, drand_randomness, network):
+    con.execute("INSERT INTO matches VALUES (?,?,?,?,?) ON CONFLICT(match_id) DO UPDATE SET summary_json=excluded.summary_json",
+                (summary.match_id, summary.model_dump_json(), block_number, drand_randomness, network))
+    con.commit()
+
+def save_match_task(con, match_id, task, challenger_ev=None, champion_ev=None):
+    con.execute("""INSERT INTO match_tasks VALUES (?,?,?,?,?,?)
+                   ON CONFLICT(match_id,task_index) DO UPDATE SET task_json=excluded.task_json,
+                   challenger_evaluation_json=excluded.challenger_evaluation_json,
+                   champion_evaluation_json=excluded.champion_evaluation_json""",
+                (match_id,task.index,task.challenge_id,task.model_dump_json(),
+                 challenger_ev.model_dump_json() if challenger_ev else None,
+                 champion_ev.model_dump_json() if champion_ev else None))
+    con.commit()
+
+def hill_setting(con, key, value):
+    con.execute("INSERT INTO hill_settings VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json",
+                (key,json.dumps(value)))
+    con.commit()

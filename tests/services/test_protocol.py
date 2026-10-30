@@ -94,3 +94,25 @@ def test_oversized_source_is_rejected():
     with pytest.raises(ValidationError):
         JobResult.for_source(job_id="j", challenge_id="c", source="#" * (MAX_SOURCE_BYTES + 1),
                              model_id="m", strategy_version="0")
+
+
+def test_hill_records_round_trip():
+    from cadrecover.protocol import (ModelCommitment, Model, MatchSummary, MatchTask, Entry, LineageEntry,
+                                     PROTOCOL_VERSION)
+    from cadrecover.protocol.hill import ModelStatus
+    from typing import get_args
+    now = "2026-10-30T00:00:00+00:00"
+    commitment = ModelCommitment(repo="owner/model", revision="a"*40, fingerprint="b"*64, weight_bytes=123)
+    model = Model(fingerprint="b"*64, name="model", source="miner", submitted_at=now, status="submitted")
+    match = MatchSummary(match_id="m_test", challenger={"fingerprint":model.fingerprint,"name":model.name},
+                         champion=None, status="running", seed={"block_hash":"0x"+"a"*64,"drand_round":1,"value":7},
+                         tasks_total=3,started_at=now)
+    entry = Entry(quality=75,latency_s=2)
+    task = MatchTask(index=0, challenge_id="ch_t",family="flange",drawing_url="/drawing.png",
+                     challenger=entry,champion=None)
+    lineage = LineageEntry(rev="A",fingerprint=model.fingerprint,name=model.name,crowned_at_block=2,
+                           crowned_at=now,score=75)
+    for record in (commitment,model,match,entry,task,lineage):
+        assert type(record).model_validate_json(record.model_dump_json()) == record
+    assert set(get_args(ModelStatus)) == {"submitted","prechecked","queued","evaluating","scored","champion","defeated","rejected"}
+    assert PROTOCOL_VERSION == "0.3.0"

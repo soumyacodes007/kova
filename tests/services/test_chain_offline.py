@@ -120,3 +120,30 @@ def test_audit_zeroed_miner_still_holding_chain_weight_is_detected(con, monkeypa
     assert not _holds_audit_zeroed_weight(con, miners, "local")  # on-chain weight is for someone else
     row["revealed_row"] = {1: 1.0}  # the validator's own self-weight = already revoked
     assert not _holds_audit_zeroed_weight(con, miners, "local")
+
+
+def test_model_commitment_round_trip_distinct_and_bounded():
+    raw=commitments.encode_model("owner/model","a"*40,"b"*64)
+    want={"k":"m","r":"owner/model","v":"a"*40,"f":"b"*16}
+    assert len(raw)<=128
+    assert commitments.decode(raw)==want
+    assert commitments.decode(SimpleNamespace(data=raw,block=17))=={**want,"block":17}
+    assert "e" not in commitments.decode(raw)
+    with pytest.raises(ValueError):
+        commitments.encode_model("owner/"+"m"*100,"a"*40,"b"*64)
+    with pytest.raises(ValueError):
+        commitments.encode_model("owner/model","main","b"*64)
+
+
+def test_testnet_state_separate_owner_validator(tmp_path,monkeypatch):
+    from cadrecover.chain import bootstrap
+    import json
+    monkeypatch.setattr(bootstrap,"STATE_FILE",tmp_path/"chain.json")
+    monkeypatch.setattr(bootstrap.paths,"HOME",tmp_path)
+    (tmp_path/"chain.json").write_text(json.dumps({"netuid":2}))
+    (tmp_path/"chain-test.json").write_text(json.dumps({"netuid":605,"owner_hotkey":"ownerhot"}))
+    assert bootstrap.load_state()["netuid"]==2
+    test=bootstrap.load_state("test")
+    assert test["netuid"]==605 and test["neurons"]["validator"]=={"uid":0,"hotkey":"ownerhot"}
+    with pytest.raises(ValueError):
+        bootstrap.load_state("mainnet")

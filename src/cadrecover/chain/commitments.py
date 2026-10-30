@@ -55,13 +55,21 @@ def decode(value) -> dict | None:
             d = json.loads(value)
         except ValueError:
             return None
-        return d if isinstance(d, dict) and "e" in d else None
+        if isinstance(d, dict) and "e" in d and "k" not in d:
+            return d
+        if isinstance(d, dict) and d.get("k") == "m":
+            try:
+                encode_model(d["r"], d["v"], d["f"])
+            except (KeyError, ValueError, TypeError):
+                return None
+            return d
+        return None
     return None
 
 
 def commit_engine(wallet_name: str, engine_digest: str, strategy: str, network: str = "local") -> dict:
     raw = encode(engine_digest, strategy)
-    state = load_state()
+    state = load_state(network)
     w = wallet(wallet_name)
     info = {"fields": [[{f"Raw{len(raw)}": "0x" + raw.hex()}]]}
     with bt.Subtensor(network_url(network)) as sub:
@@ -76,8 +84,41 @@ def commit_engine(wallet_name: str, engine_digest: str, strategy: str, network: 
 
 
 def read_commitment(hotkey: str, network: str = "local", sub=None) -> dict | None:
-    state = load_state()
+    state = load_state(network)
     if sub is None:
         with bt.Subtensor(network_url(network)) as s:
             return decode(s.read("commitment", netuid=state["netuid"], hotkey_ss58=hotkey))
     return decode(sub.read("commitment", netuid=state["netuid"], hotkey_ss58=hotkey))
+
+def encode_model(repo: str, revision: str, fingerprint: str) -> bytes:
+    import re
+    if not isinstance(repo,str) or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+",repo):
+        raise ValueError("repo must be owner/model")
+    if not isinstance(revision,str) or not re.fullmatch(r"[a-fA-F0-9]{40}",revision):
+        raise ValueError("revision must be a full 40-hex commit")
+    if not isinstance(fingerprint,str) or not re.fullmatch(r"[a-f0-9]{16}|[a-f0-9]{64}",fingerprint):
+        raise ValueError("fingerprint must be 16 or 64 hex characters")
+    raw=json.dumps({"k":"m","r":repo,"v":revision.lower(),"f":fingerprint[:16]},
+                   separators=(",",":")).encode("utf-8")
+    if len(raw)>MAX_RAW:
+        raise ValueError(f"model commitment is {len(raw)} bytes; maximum is {MAX_RAW}")
+    return raw
+
+
+def commit_model(wallet_name: str, repo: str, revision: str, fingerprint: str, network="local") -> dict:
+    raw=encode_model(repo,revision,fingerprint)
+    state=load_state(network)
+    if not state:
+        raise ChainError(f"missing {network} chain state")
+    w=wallet(wallet_name)
+    info={"fields":[[{f"Raw{len(raw)}":"0x"+raw.hex()}]]}
+    with bt.Subtensor(network_url(network)) as sub:
+        res=sub.submit_call(bt.calls.Commitments.set_commitment(netuid=state["netuid"],info=info),
+                            w,signer="hotkey")
+        if not res.success:
+            raise ChainError("model commitment rejected by chain")
+        back=read_commitment(w.hotkey.ss58_address,network,sub=sub)
+    expected=json.loads(raw)
+    if not back or any(back.get(k)!=v for k,v in expected.items()) or back.get("block") is None:
+        raise ChainError("model commitment readback mismatch or missing commit block")
+    return {"wallet":wallet_name,"hotkey":w.hotkey.ss58_address,**back}

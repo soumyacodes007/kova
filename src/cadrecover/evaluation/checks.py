@@ -36,6 +36,8 @@ def validity(part: Part | None) -> tuple[bool, list[FailedCheck]]:
 
 
 THROUGH_AXIS = (0.0, 0.0, 1.0)  # through-features of the plate/flange/chuck families run along Z
+AXIS_LEVER_MM = 50.0  # an axis may be off by position_tolerance / this (radians): 0.1 mm over a 50 mm lever
+_SAME_AXIS_RAD = 0.05  # candidates this close in direction are preferred when matching a feature (~3 degrees)
 
 
 def offset(a: tuple, b: tuple, axis: tuple = THROUGH_AXIS) -> float:
@@ -44,10 +46,12 @@ def offset(a: tuple, b: tuple, axis: tuple = THROUGH_AXIS) -> float:
     A through-hole's position is where it pierces the part, not how high its
     measured edge sits: a misread thickness moves the top face (and so the
     measured centre) along Z, but must not count as a misplaced hole; it is
-    charged to geometry and dimensions instead. (Phase 7: features with their
-    own axes, like chamber ports, will pass their axis here.)
+    charged to geometry and dimensions instead. Features with their own axes
+    (a chamber's radial ports and their bolt holes) are compared across that axis.
     """
     d = [a[i] - b[i] for i in range(3)]
+    norm = math.sqrt(sum(x * x for x in axis)) or 1.0
+    axis = tuple(x / norm for x in axis)
     along = sum(d[i] * axis[i] for i in range(3))
     return math.sqrt(max(0.0, sum(x * x for x in d) - along * along))
 
@@ -55,9 +59,41 @@ def offset(a: tuple, b: tuple, axis: tuple = THROUGH_AXIS) -> float:
 CRITICAL_KINDS = ("hole", "slot", "bore", "port")
 
 
+def through_axis(f: FeatureMeasurement) -> tuple:
+    """The axis a feature's position is compared across: its own axis for holes, bores and ports; Z otherwise
+    (a slot's `axis` is its long direction, not its through-direction)."""
+    if f.kind in ("hole", "bore", "port") and f.axis is not None and any(f.axis):
+        return f.axis
+    return THROUGH_AXIS
+
+
+def axis_gap(m: FeatureMeasurement, e: FeatureMeasurement) -> float:
+    """Angle (radians) between a measured feature's axis and the expected one. Z-axis features are unoriented;
+    others (radial ports) are oriented outward, so opposite ports never match each other. Slots and features
+    without an axis are not compared."""
+    if e.kind not in ("hole", "bore", "port") or e.axis is None or not any(e.axis):
+        return 0.0
+    if m.axis is None or not any(m.axis):
+        return 0.0 if abs(abs(e.axis[2]) / math.sqrt(sum(x * x for x in e.axis)) - 1.0) < 1e-6 else math.pi
+    ne, nm = math.sqrt(sum(x * x for x in e.axis)), math.sqrt(sum(x * x for x in m.axis))
+    cos = sum(e.axis[i] * m.axis[i] for i in range(3)) / (ne * nm)
+    if abs(e.axis[2]) / ne > 1.0 - 1e-6:
+        cos = abs(cos)
+    return math.acos(max(-1.0, min(1.0, cos)))
+
+
 def _nearest(e: FeatureMeasurement, measured: list[FeatureMeasurement]) -> FeatureMeasurement | None:
+    """The measured feature of the same kind closest to `e`: across its axis, among those pointing its way; when
+    none points its way (a turned port), the one whose centre is nearest in space."""
     pool = [m for m in measured if m.kind == e.kind and m.center is not None]
-    return min(pool, key=lambda m: offset(m.center, e.center), default=None)
+    axis = through_axis(e)
+
+    def key(m: FeatureMeasurement) -> tuple:
+        if axis_gap(m, e) <= _SAME_AXIS_RAD:
+            return (0, offset(m.center, e.center, axis))
+        return (1, math.dist(m.center, e.center))
+
+    return min(pool, key=key, default=None)
 
 
 def critical(expected: list[FeatureMeasurement], measured: list[FeatureMeasurement],
@@ -75,8 +111,14 @@ def critical(expected: list[FeatureMeasurement], measured: list[FeatureMeasureme
         if m is None:
             failed.append(FailedCheck(name=f"{e.name}.missing", message=f"no {e.kind} found", location=e.center))
             continue
-        off = offset(m.center, e.center)
-        if off > pos_tol:
+        gap = axis_gap(m, e)
+        off = offset(m.center, e.center, through_axis(e))
+        if gap > pos_tol / AXIS_LEVER_MM:
+            failed.append(FailedCheck(name=f"{e.name}.axis",
+                                      message=f"{e.kind} axis off by {math.degrees(gap):.2f} degrees "
+                                              f"(tolerance {math.degrees(pos_tol / AXIS_LEVER_MM):.2f})",
+                                      location=e.center))
+        elif off > pos_tol:
             failed.append(FailedCheck(name=f"{e.name}.position",
                                       message=f"{e.kind} centre off by {off:.3f} mm (tolerance {pos_tol})",
                                       location=e.center))

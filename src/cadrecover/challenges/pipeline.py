@@ -20,6 +20,7 @@ from pathlib import Path
 
 from cadrecover import paths
 from cadrecover.challenges.families import flange_spec, plate_spec, wafer_chuck_spec
+from cadrecover.challenges.families import vacuum_chamber_spec
 from cadrecover.protocol import (
     Artifact,
     FeatureMeasurement,
@@ -29,8 +30,9 @@ from cadrecover.protocol import (
 )
 from cadrecover.storage import db
 
-SPECS = {"plate": plate_spec, "flange": flange_spec, "wafer_chuck": wafer_chuck_spec}
-TITLES = {"plate": "Mounting plate", "flange": "Vacuum flange", "wafer_chuck": "Wafer chuck"}
+SPECS = {"plate": plate_spec, "flange": flange_spec, "wafer_chuck": wafer_chuck_spec,
+         "vacuum_chamber": vacuum_chamber_spec}
+TITLES = {"plate": "Mounting plate", "flange": "Vacuum flange", "wafer_chuck": "Wafer chuck", "vacuum_chamber": "Vacuum chamber"}
 
 
 class ChallengeError(RuntimeError):

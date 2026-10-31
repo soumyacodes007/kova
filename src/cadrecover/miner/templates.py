@@ -167,7 +167,64 @@ def wafer_chuck_source(drawn: dict[str, float], mode: str = "honest", label: str
     )
 
 
-SOURCES = {"plate": plate_source, "flange": flange_source, "wafer_chuck": wafer_chuck_source}
+_VACUUM_CHAMBER = '''"""{header}"""
+{imports}import math
+
+from build123d import Align, Cylinder, Pos, Rot
+
+DRAWN = {drawn!r}  # values read off the drawing (port_count and bolt_count are counted on it)
+ANGLES = sorted((0.0, 90.0, 180.0, 270.0, 45.0, 135.0)[: int(DRAWN["port_count"])])  # degrees, port 1 on +X
+
+
+def along_x(radius, length, x, u=0.0, v=0.0):
+    return Pos(x, u, v) * Rot(0, 90, 0) * Cylinder(radius, length)
+
+
+def build_part(overrides):
+{body}    d, db, h = p["body_diameter"], p["body_bore_diameter"], p["body_height"]
+    r, ft = p["port_reach"], p["flange_thickness"]
+    n = int(DRAWN["bolt_count"])
+{circle}    x0, x1 = db / 4, r - ft
+    port = along_x((p["port_diameter"] + 8.0) / 2, x1 - x0, (x0 + x1) / 2)  # stub tube, 4 mm wall
+    port += along_x(p["flange_diameter"] / 2, ft, r - ft / 2)  # flange disc, outer face at r
+    for j in range(n):  # bolt hole 1 straight up, then evenly around the port axis
+        phi = math.pi / 2 + 2 * math.pi * j / n
+        port -= along_x(p["port_bolt_hole_diameter"] / 2, 2 * ft, r - ft / 2, bc / 2 * math.cos(phi), bc / 2 * math.sin(phi))
+    part = Cylinder(d / 2, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    for a in ANGLES:
+        part += Pos(0, 0, h / 2) * Rot(0, 0, a) * port
+    part -= Pos(0, 0, h / 2) * Cylinder(db / 2, 3 * h)  # hollow body
+    for a in ANGLES:  # every port bore opens into the body
+        part -= Pos(0, 0, h / 2) * Rot(0, 0, a) * along_x(p["port_diameter"] / 2, r + ft - db / 4, (db / 4 + r + ft) / 2)
+    return part
+'''
+
+_CHAMBER_CIRCLE_RULE = '    bc = p["port_bolt_circle_diameter"]\n'
+_CHAMBER_CIRCLE_PROPORTIONAL = '''\
+    # bolt circle kept at the drawn *fraction* of the port diameter, not at the edited bolt circle
+    bc = DRAWN["port_bolt_circle_diameter"] / DRAWN["port_diameter"] * p["port_diameter"]
+'''
+
+
+def vacuum_chamber_source(drawn: dict[str, float], mode: str = "honest", label: str = "") -> str:
+    if mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}")
+    body = {
+        "constant": "    p = dict(DRAWN)  # ignores overrides\n",
+        "wrong_holes": "    p = {**DRAWN, **overrides}\n    p['port_bolt_hole_diameter'] = p['port_bolt_hole_diameter'] * 1.3\n",
+        "timeout": "    while True:\n        pass\n    p = {}\n",
+    }.get(mode, "    p = {**DRAWN, **overrides}\n")
+    return _VACUUM_CHAMBER.format(
+        header=f"CADRecover vacuum chamber solution ({label or mode})",
+        imports="import socket  # forbidden: no network in a CAD submission\n" if mode == "crash" else "",
+        drawn={k: float(v) for k, v in drawn.items()},
+        body=body,
+        circle=_CHAMBER_CIRCLE_PROPORTIONAL if mode == "proportional" else _CHAMBER_CIRCLE_RULE,
+    )
+
+
+SOURCES = {"plate": plate_source, "flange": flange_source, "wafer_chuck": wafer_chuck_source,
+           "vacuum_chamber": vacuum_chamber_source}
 
 
 def source_for(family: str, drawn: dict[str, float], mode: str = "honest", label: str = "") -> str:

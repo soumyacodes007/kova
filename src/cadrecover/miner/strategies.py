@@ -84,14 +84,15 @@ class MockNoisy(Strategy):
         _require_family(challenge)
         drawn = dict(_oracle_read(challenge))
         rng = random.Random(int(hashlib.sha256(job_id.encode()).hexdigest(), 16))
-        hole_key = {"flange": "bolt_hole_diameter", "wafer_chuck": "vacuum_hole_diameter"}.get(
-            challenge.family, "hole_diameter")
+        hole_key = {"flange": "bolt_hole_diameter", "wafer_chuck": "vacuum_hole_diameter",
+                    "vacuum_chamber": "port_bolt_hole_diameter"}.get(challenge.family, "hole_diameter")
+        height_key = "flange_thickness" if challenge.family == "vacuum_chamber" else "thickness"  # a slip that costs only G and D
         roll, notes = rng.random(), "read cleanly"
         if roll < 0.15:
             drawn[hole_key] += 0.5
             notes = "misread hole diameter by +0.5 mm"
         elif roll < 0.50:
-            drawn["thickness"] += rng.choice((-1.0, 1.0))
+            drawn[height_key] += rng.choice((-1.0, 1.0))
             notes = "misread thickness by 1 mm"
         return Solution(source_for(challenge.family, drawn, "honest", label=self.name), model_id="mock:noisy",
                         strategy_version=self.version, notes=notes)

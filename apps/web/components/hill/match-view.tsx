@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { clientPath } from "@/lib/api";
 import type { Entry, MatchDetail } from "@/lib/hill-types";
 
+import { ChutesCalls } from "./chutes-calls";
 import { useHillEvents } from "./live";
 import { RaceChart, Stamp } from "./race-chart";
 import { FAMILY_LABEL } from "./ui";
@@ -37,7 +38,7 @@ function Side({ title, name, e, tone }: { title: string; name: string; e: Entry 
           <span className="text-ink-soft">{title} </span>
           <span className="font-medium">{name}</span>
         </p>
-        <span className={`font-mono text-2xl tracking-[-0.03em] ${tone === "accent" ? "text-accent" : ""}`}>{e?.quality ?? "..."}</span>
+        <span className={`font-mono text-2xl tracking-[-0.03em] ${tone === "accent" ? "text-accent" : ""}`}>{e?.quality == null ? "..." : e.quality.toFixed(1)}</span>
       </div>
       <div className="aspect-[4/3]">
         {cand ? (
@@ -173,9 +174,9 @@ export function MatchView({ detail: initial, poll = false }: { detail: MatchDeta
                     {x.index + 1}. {FAMILY_LABEL[x.family]}
                   </span>
                   <span>
-                    <span className="text-accent">{x.challenger.quality ?? "..."}</span>
+                    <span className="text-accent">{x.challenger.quality == null ? "..." : x.challenger.quality.toFixed(1)}</span>
                     <span className="text-ink-soft">/</span>
-                    {x.champion?.quality ?? "..."}
+                    {x.champion?.quality == null ? "..." : x.champion.quality.toFixed(1)}
                   </span>
                 </span>
               </button>
@@ -199,6 +200,8 @@ export function MatchView({ detail: initial, poll = false }: { detail: MatchDeta
           </div>
         </section>
       )}
+
+      {poll && <ChutesCalls matchId={matchId} refreshKey={match.tasks_done} />}
     </div>
   );
 }

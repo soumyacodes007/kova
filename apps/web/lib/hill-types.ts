@@ -18,7 +18,7 @@ export type Model = {
   /** Miner: weight-metadata SHA256; catalog: SHA256 of "chutes-catalog:" + provider id (not a weights claim). */
   fingerprint: string;
   name: string;
-  source: "catalog" | "miner";
+  source: "catalog" | "miner" | "mock";
   repo: string | null;
   revision: string | null;
   base_model: string | null;

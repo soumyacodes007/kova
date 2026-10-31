@@ -633,7 +633,7 @@ export interface components {
         Model: {
             fingerprint: string;
             name: string;
-            source: "catalog" | "miner";
+            source: "catalog" | "miner" | "mock";
             repo: string | null;
             revision: string | null;
             base_model: string | null;
@@ -852,7 +852,9 @@ export interface operations {
     };
     list_hill_models: {
         parameters: {
-            query?: never;
+            query?: {
+                network?: "local" | "test" | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -862,6 +864,11 @@ export interface operations {
             "200": {
                 content: {
                     "application/json": components["schemas"]["Model"][];
+                };
+            };
+            "422": {
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

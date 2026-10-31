@@ -136,6 +136,7 @@ async function HillBody({ searchParams }: { searchParams: SP }) {
               <p className="flex flex-wrap items-center justify-between gap-3 font-mono text-[12px]">
                 <span className="text-accent">{live.status === "running" ? "match in progress" : "latest match"}</span>
                 <span className="text-[#a8a8a3]">
+                  {live.status === "running" && live.tasks_done < live.tasks_total ? `scoring drawing ${live.tasks_done + 1} · ` : ""}
                   {live.tasks_done}/{live.tasks_total} drawings · seed {live.seed?.value ?? "hidden until match ends"}
                 </span>
               </p>
@@ -143,13 +144,13 @@ async function HillBody({ searchParams }: { searchParams: SP }) {
                 <div className="min-w-0">
                   <p className="text-[12.5px] text-[#a8a8a3]">challenger</p>
                   <p className="truncate text-xl font-medium">{live.challenger.name}</p>
-                  <p className="font-mono text-4xl tracking-[-0.04em] text-accent">{q1(live.challenger_mean)}</p>
+                  <p className="font-mono text-4xl tracking-[-0.04em] text-accent">{live.challenger_mean == null ? "..." : q1(live.challenger_mean)}</p>
                 </div>
                 <span className="pb-2 font-mono text-[13px] text-[#a8a8a3]">vs</span>
                 <div className="min-w-0 text-right">
                   <p className="text-[12.5px] text-[#a8a8a3]">champion</p>
                   <p className="truncate text-xl font-medium">{live.champion?.name ?? "none"}</p>
-                  <p className="font-mono text-4xl tracking-[-0.04em]">{q1(live.champion_mean)}</p>
+                  <p className="font-mono text-4xl tracking-[-0.04em]">{live.champion_mean == null ? "..." : q1(live.champion_mean)}</p>
                 </div>
               </div>
               <div className="mt-5 flex gap-[3px]" aria-label="Match progress">

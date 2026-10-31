@@ -99,8 +99,18 @@ def _hill_run(a) -> None:
         sys.exit("tasks and budget caps must be positive; margin must be finite and nonnegative")
     out = run_catalog(network=a.network, tasks_per_match=a.tasks, max_spend_usd=a.max_spend_usd, log=_logger(a),
                       allow_testnet_spend=a.allow_testnet_spend, total_cap_usd=a.total_cap_usd, margin=a.margin,
-                      only=a.model or None)
+                      only=a.model or None, set_weights=not a.no_weights)
     _print(out)
+
+
+def _hill_mock(a) -> None:
+    from cadrecover.validator.hill.match import run_mock
+
+    if a.network == "test" and not a.allow_testnet_spend:
+        sys.exit("testnet hill runs require explicit --allow-testnet-spend approval")
+    _print(run_mock(strategy=a.strategy, wallet=a.wallet, network=a.network, tasks_per_match=a.tasks,
+                    max_spend_usd=a.max_spend_usd, margin=a.margin, allow_testnet_spend=a.allow_testnet_spend,
+                    set_weights=not a.no_weights, log=_logger(a)))
 
 
 def _logger(a):
@@ -313,9 +323,21 @@ def main(argv: list[str] | None = None) -> None:
     hr.add_argument("--total-cap-usd", type=float, default=3.00, help="persistent lifetime Chutes spend cap")
     hr.add_argument("--margin", type=float, default=2.0, help="strict winning margin in quality points")
     hr.add_argument("--model", action="append", help="only enter this catalog model id (repeatable)")
+    hr.add_argument("--no-weights", action="store_true", help="score matches but do not set weights")
     hr.add_argument("--allow-testnet-spend", action="store_true", help="explicitly approve this testnet catalog run")
     hr.add_argument("--plain", action="store_true")
     hr.set_defaults(fn=_hill_run)
+    hm = hi.add_parser("mock", help="enter the scripted mock miner (labelled mock, not a model); local or test")
+    hm.add_argument("--network", default="local", choices=["local", "test"])
+    hm.add_argument("--allow-testnet-spend", action="store_true")
+    hm.add_argument("--no-weights", action="store_true", help="score the match but do not set weights")
+    hm.add_argument("--strategy", default="mock-noisy", choices=["mock-noisy", "mock-oracle"])
+    hm.add_argument("--wallet", default="miner2", help="localnet miner wallet that receives the weight")
+    hm.add_argument("--tasks", type=int, default=10)
+    hm.add_argument("--max-spend-usd", type=float, default=0.50, help="cap for the champion side's Chutes calls")
+    hm.add_argument("--margin", type=float, default=2.0)
+    hm.add_argument("--plain", action="store_true")
+    hm.set_defaults(fn=_hill_mock)
 
     au = cmds.add_parser("auditor").add_subparsers(dest="sub", required=True)
     ar = au.add_parser("run", help="audit top miners: re-run their committed engine on hidden tasks")
@@ -329,7 +351,7 @@ def main(argv: list[str] | None = None) -> None:
 
     ch = cmds.add_parser("challenge").add_subparsers(dest="sub", required=True)
     new = ch.add_parser("new", help="generate a hidden part and its drawing")
-    new.add_argument("--family", default="plate", choices=["plate", "flange", "wafer_chuck"])
+    new.add_argument("--family", default="plate", choices=["plate", "flange", "wafer_chuck", "vacuum_chamber"])
     new.add_argument("--seed", type=int, default=None, help="private seed (default: random)")
     new.add_argument("--clean", action="store_true", help="skip the scan look (crisp drawing)")
     new.set_defaults(fn=_challenge_new)

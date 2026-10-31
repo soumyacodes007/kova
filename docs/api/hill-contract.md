@@ -29,11 +29,14 @@ at any step. A model has one current status.
 
 ## `GET /v1/models` → `[Model]`, best first
 
+Optional `?network=local|test` (default: the network the API serves) lists another network's models; records never mix networks.
+
 ```jsonc
 {
   "fingerprint": "f3a9…",        // miner: sorted weight LFS hashes; catalog: sha256("chutes-catalog:" + provider model id)
   "name": "gemma-4-31B-turbo-TEE",
-  "source": "catalog" | "miner", // catalog = a Chutes catalog model entered by the validator
+  "source": "catalog" | "miner" | "mock", // catalog = a Chutes catalog model entered by the validator;
+                                 // mock = scripted demo miner on localnet (reads private values), never a model
   "repo": "google/gemma-4-31b" | null,
   "revision": "40-hex commit" | null,
   "base_model": "string" | null,

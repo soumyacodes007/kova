@@ -76,17 +76,49 @@
         ],
         "summary": "List Hill Models",
         "operationId": "list_hill_models",
+        "parameters": [
+          {
+            "name": "network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "local",
+                    "test"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Network"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Model"
                   },
-                  "type": "array",
                   "title": "Response List Hill Models"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2840,7 +2872,8 @@
             "type": "string",
             "enum": [
               "catalog",
-              "miner"
+              "miner",
+              "mock"
             ],
             "title": "Source"
           },

@@ -9,7 +9,8 @@ const ok = <T,>(data: T): ApiResult<T> => ({ ok: true, data });
 const missing = <T,>(): ApiResult<T> => ({ ok: false, error: "not found" });
 
 export const getHill = ({ sample }: Source) => (sample ? Promise.resolve(ok<Hill>(sampleHill)) : api<Hill>("/v1/hill"));
-export const getModels = ({ sample }: Source) => (sample ? Promise.resolve(ok<Model[]>(sampleModels)) : api<Model[]>("/v1/models"));
+export const getModels = ({ sample, network }: Source & { network?: "local" | "test" }) =>
+  sample ? Promise.resolve(ok<Model[]>(sampleModels)) : api<Model[]>(network ? `/v1/models?network=${network}` : "/v1/models");
 export const getMatches = ({ sample }: Source) =>
   sample ? Promise.resolve(ok<MatchSummary[]>(sampleMatches)) : api<MatchSummary[]>("/v1/matches");
 

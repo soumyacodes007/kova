@@ -9,6 +9,8 @@ active, hidden-edit values, failed-check text and reference models are withheld 
 
 from __future__ import annotations
 
+from typing import Literal
+
 import argparse
 import os
 import re
@@ -118,8 +120,8 @@ def create_app(db_path: Path | str | None = None, *, public_dir: Path | None = N
         return hill.hill(con, hill_network)
 
     @app.get("/v1/models", response_model=list[hill.Model], tags=["hill"])
-    def list_hill_models(con=Con):
-        return hill.models(con, hill_network)
+    def list_hill_models(network: Literal["local", "test"] | None = None, con=Con):
+        return hill.models(con, network or hill_network)
 
     @app.get("/v1/models/{fingerprint}", response_model=hill.ModelDetail, tags=["hill"])
     def get_hill_model(fingerprint: str, con=Con):

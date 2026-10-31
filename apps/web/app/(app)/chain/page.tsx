@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Badge, Bar, Empty, Offline, Page, PageHead, Skeleton } from "@/components/app/page-parts";
-import { api, type Audit, type Commitment, type WeightBatch } from "@/lib/api";
+import { api, type Audit, type Commitment, type EventOut, type WeightBatch } from "@/lib/api";
+import { blockUrl, extrinsicBlock } from "@/lib/explorer";
 import { q, shortHash, shortKey, when } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Chain | CADRecover" };
@@ -24,6 +25,81 @@ function SectionHead({ id, title, children }: { id: string; title: string; child
         {title}
       </h2>
       {children && <p className="text-[13px] text-ink-soft">{children}</p>}
+    </div>
+  );
+}
+
+function ExplorerLink({ href, children }: { href: string | null; children: React.ReactNode }) {
+  if (!href) return <>{children}</>;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="text-ink underline decoration-accent underline-offset-2 hover:text-accent">
+      {children}
+    </a>
+  );
+}
+
+const TX_LABEL: Record<string, string> = {
+  transfer: "Fund the miner's coldkey",
+  register: "Register the miner (burned registration)",
+  serve_axon: "Publish the miner's endpoint",
+  hill_commit: "Track B: champion weight commit",
+  trackA_commit: "Track A: round weight commit",
+};
+
+type ChainTx = {
+  network: string;
+  netuid: number;
+  what: string;
+  label?: string;
+  extrinsic_id: string;
+  extrinsic_hash: string;
+  block: number;
+  block_hash: string;
+  signer: string;
+  call: string;
+};
+
+async function Transactions() {
+  const res = await api<{ events: EventOut[] }>("/v1/events?kind=chain.tx&limit=100");
+  if (!res.ok) return <Offline error={res.error} />;
+  const txs = res.data.events.map((e) => e.payload as unknown as ChainTx);
+  if (!txs.length) return <Empty title="No recorded transactions yet" />;
+  return (
+    <div className="overflow-x-auto rounded-md border border-line">
+      <table className="w-full min-w-[760px] text-[13px]">
+        <thead>
+          <tr className="border-b border-line text-left text-ink-soft">
+            <th className="px-4 py-2.5 font-normal">what</th>
+            <th className="px-4 py-2.5 font-normal">call</th>
+            <th className="px-4 py-2.5 font-normal">extrinsic hash</th>
+            <th className="px-4 py-2.5 text-right font-normal">block</th>
+          </tr>
+        </thead>
+        <tbody>
+          {txs.map((t) => (
+            <tr key={t.extrinsic_hash} className="border-b border-line last:border-0 align-top">
+              <td className="px-4 py-3">
+                {t.label ?? TX_LABEL[t.what] ?? t.what}
+                <span className="mt-0.5 block font-mono text-[11.5px] text-ink-soft">
+                  {t.network} netuid {t.netuid} · signer {shortKey(t.signer)}
+                </span>
+              </td>
+              <td className="px-4 py-3 font-mono text-[12px]">{t.call}</td>
+              <td className="px-4 py-3 font-mono text-[12px]">
+                <span className="break-all">
+                  <ExplorerLink href={blockUrl(t.network, t.block)}>{t.extrinsic_hash}</ExplorerLink>
+                </span>
+                <span className="mt-0.5 block text-[11.5px] text-ink-soft">
+                  extrinsic <ExplorerLink href={blockUrl(t.network, t.block)}>{t.extrinsic_id}</ExplorerLink>
+                </span>
+              </td>
+              <td className="px-4 py-3 text-right font-mono text-[12px]">
+                <ExplorerLink href={blockUrl(t.network, t.block)}>{t.block.toLocaleString("en-US")}</ExplorerLink>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -73,10 +149,17 @@ function BatchCard({ b }: { b: WeightBatch }) {
             />
             <p className="flex flex-wrap items-baseline gap-x-3 font-mono text-[13px]">
               <span className="w-24">{r.state}</span>
-              <span className="text-ink">{r.block != null ? `block ${r.block}` : "no block"}</span>
+              <span className="text-ink">
+                {r.block != null ? <ExplorerLink href={blockUrl(b.network, r.block)}>block {r.block}</ExplorerLink> : "no block"}
+              </span>
               <span className="text-ink-soft">{new Date(r.at).toISOString().slice(11, 19)} UTC</span>
             </p>
-            {r.extrinsic && <p className="mt-0.5 font-mono text-[11.5px] text-ink-soft">extrinsic {r.extrinsic}</p>}
+            {r.extrinsic && (
+              <p className="mt-0.5 font-mono text-[11.5px] text-ink-soft">
+                extrinsic{" "}
+                <ExplorerLink href={blockUrl(b.network, extrinsicBlock(r.extrinsic) ?? r.extrinsic)}>{r.extrinsic}</ExplorerLink>
+              </p>
+            )}
             {r.readback && (
               <p className="mt-0.5 font-mono text-[11.5px] text-ink-soft">
                 read back{" "}
@@ -185,6 +268,13 @@ export default function ChainPage() {
         Everything the validator wrote to the chain, with the block it landed in: weight batches and their receipts,
         each miner&apos;s committed engine hash, and the audits that re-ran those engines offline.
       </PageHead>
+
+      <section aria-labelledby="transactions" className="mb-20">
+        <SectionHead id="transactions" title="Transactions">every extrinsic read back from the chain; block opens the explorer</SectionHead>
+        <Suspense fallback={<Skeleton rows={3} />}>
+          <Transactions />
+        </Suspense>
+      </section>
 
       <section aria-labelledby="weights" className="mb-20">
         <SectionHead id="weights" title="Weight batches">proposed, then committed or submitted, then read back</SectionHead>

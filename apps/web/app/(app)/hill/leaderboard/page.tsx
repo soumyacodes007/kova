@@ -32,7 +32,7 @@ function ScoreCell({ m, line }: { m: Model; line: number | null }) {
   );
 }
 
-function Row({ m, rank, line, sample }: { m: Model; rank: number | null; line: number | null; sample: boolean }) {
+function Row({ m, rank, line, sample, linked = true }: { m: Model; rank: number | null; line: number | null; sample: boolean; linked?: boolean }) {
   const champion = m.status === "champion";
   return (
     <li
@@ -43,9 +43,13 @@ function Row({ m, rank, line, sample }: { m: Model; rank: number | null; line: n
       <span className={`font-mono text-2xl tracking-[-0.03em] ${champion ? "text-accent" : "text-ink-soft"}`}>{rank ?? "·"}</span>
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <Link href={href(`/hill/models/${m.fingerprint}`, sample)} className="truncate text-[17px] font-medium hover:text-accent">
-            {m.name}
-          </Link>
+          {linked ? (
+            <Link href={href(`/hill/models/${m.fingerprint}`, sample)} className="truncate text-[17px] font-medium hover:text-accent">
+              {m.name}
+            </Link>
+          ) : (
+            <span className="truncate text-[17px] font-medium">{m.name}</span>
+          )}
           <StatusBadge m={m} />
         </p>
         <p className="mt-1.5 truncate font-mono text-[11.5px] text-ink-soft">
@@ -92,7 +96,11 @@ function Row({ m, rank, line, sample }: { m: Model; rank: number | null; line: n
 
 async function Board({ searchParams }: { searchParams: SP }) {
   const sample = isSample(await searchParams);
-  const [models, hill] = await Promise.all([getModels({ sample }), getHill({ sample })]);
+  const [models, hill, local] = await Promise.all([
+    getModels({ sample }),
+    getHill({ sample }),
+    sample ? Promise.resolve(null) : getModels({ sample, network: "local" }),
+  ]);
   if (!models.ok) return <BackendPending error={models.error} samplePath="/hill/leaderboard?sample=1" />;
   if (!models.data.length) return <Empty title="No models yet">The first catalog model or miner submission appears here.</Empty>;
 
@@ -128,7 +136,33 @@ async function Board({ searchParams }: { searchParams: SP }) {
           return <Row key={m.fingerprint} m={m} rank={ranked ? ++rank : null} line={line} sample={sample} />;
         })}
       </ul>
+      {local?.ok && local.data.length > 0 && <LocalRun models={local.data} margin={margin} />}
     </>
+  );
+}
+
+/** The localnet run: same harness and real Chutes inference, on a local chain. Never mixed into the standings above. */
+function LocalRun({ models, margin }: { models: Model[]; margin: number }) {
+  const rows = [...models].sort((a, b) => ORDER[a.status] - ORDER[b.status] || (b.mean_quality ?? -1) - (a.mean_quality ?? -1));
+  const champ = rows.find((m) => m.status === "champion");
+  const line = champ?.mean_quality != null ? Math.min(100, champ.mean_quality + margin) : null;
+  let rank = 0;
+  return (
+    <section aria-labelledby="local-run" className="mt-16">
+      <h2 id="local-run" className="text-2xl font-medium tracking-[-0.02em]">
+        Localnet run
+      </h2>
+      <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-ink-soft">
+        The same catalog models, harness and real Chutes inference, played on a local Bittensor chain before the
+        testnet run. Its champion and weights are local only; the standings above are testnet 605.
+      </p>
+      <ul className="mt-6 border-b border-line">
+        {rows.map((m) => {
+          const ranked = m.mean_quality != null && m.status !== "rejected";
+          return <Row key={m.fingerprint} m={m} rank={ranked ? ++rank : null} line={line} sample={false} linked={false} />;
+        })}
+      </ul>
+    </section>
   );
 }
 

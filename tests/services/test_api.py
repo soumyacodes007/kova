@@ -663,3 +663,20 @@ def test_later_duplicate_rejection_is_not_the_original_models_status(hill_client
     detail = hill_client.get("/v1/models/" + "a" * 64).json()
     assert detail["model"]["status"] == "champion"
     assert all(e["status"] != "rejected" for e in detail["events"])
+
+
+def test_models_network_query_lists_only_that_network(tmp_path):
+    from fastapi.testclient import TestClient
+    from cadrecover.api.app import create_app
+    from cadrecover.protocol.hill import Model
+    from cadrecover.storage import db
+    dbf = tmp_path / "net.db"
+    con = db.connect(dbf)
+    for net, name in (("local", "l-model"), ("test", "t-model")):
+        db.save_model(con, Model(fingerprint=("a" if net == "local" else "b") * 64, name=name, source="catalog",
+                                 submitted_at="now", status="queued"), net)
+    con.close()
+    c = TestClient(create_app(dbf, hill_network="test"))
+    assert [m["name"] for m in c.get("/v1/models").json()] == ["t-model"]
+    assert [m["name"] for m in c.get("/v1/models?network=local").json()] == ["l-model"]
+    assert c.get("/v1/models?network=finney").status_code == 422

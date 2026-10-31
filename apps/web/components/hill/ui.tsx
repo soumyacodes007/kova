@@ -63,7 +63,7 @@ export function StatusBadge({ m }: { m: Pick<Model, "status" | "progress"> }) {
 export function SourceBadge({ m }: { m: Pick<Model, "source" | "tee"> }) {
   return (
     <span className="flex flex-wrap gap-1.5">
-      <Badge>{m.source === "catalog" ? "Chutes catalog" : "miner"}</Badge>
+      <Badge>{m.source === "catalog" ? "Chutes catalog" : m.source === "mock" ? "mock miner (scripted)" : "miner"}</Badge>
       {m.tee && <Badge>TEE</Badge>}
     </span>
   );

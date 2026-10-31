@@ -16,6 +16,7 @@ from cadrecover import paths
 from cadrecover.api.models import ChainInfo
 
 LOCAL_RPC = "http://127.0.0.1:9944"  # the dev node serves JSON-RPC over HTTP on its websocket port
+TEST_RPC = "https://test.finney.opentensor.ai:443"  # public testnet node, same JSON-RPC over HTTPS
 TTL_S = 3.0
 
 
@@ -30,10 +31,10 @@ class ChainProbe:
         except (OSError, ValueError):
             return {}
 
-    def _head(self, rpc: str) -> int | None:
+    def _head(self, rpc: str, timeout_s: float) -> int | None:
         try:
             r = httpx.post(rpc, json={"id": 1, "jsonrpc": "2.0", "method": "chain_getHeader", "params": []},
-                           timeout=self.timeout_s)
+                           timeout=timeout_s)
             return int(r.json()["result"]["number"], 16)
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
             return None
@@ -45,8 +46,8 @@ class ChainProbe:
         st = self._state()
         rpc = self.rpc  # "auto" = the local node when the state file says `local`; None = never probe
         if rpc == "auto":
-            rpc = LOCAL_RPC if st.get("network") == "local" else None
-        block = self._head(rpc) if rpc else None
+            rpc = {"local": LOCAL_RPC, "test": TEST_RPC}.get(st.get("network"))
+        block = self._head(rpc, 3.0 if rpc == TEST_RPC else self.timeout_s) if rpc else None
         validator = (st.get("neurons") or {}).get("validator") or {}
         if st.get("network") == "test" and not validator:
             validator = {"hotkey": st.get("owner_hotkey")}

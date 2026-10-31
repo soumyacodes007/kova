@@ -1,0 +1,31 @@
+# How a miner submits a model, end to end, on a throwaway localnet of its own.
+#
+#   bash demo/submit/run.sh                 # fresh chain, run the walkthrough, log to runtime/submit-demo.log
+#   docker compose -f demo/submit/compose.yaml down -v   # clean up
+#
+# Separate project from the main compose.yaml: its own localnet, no host ports, nothing on mainnet.
+name: cadrecover-submit-demo
+services:
+  chain:
+    image: ghcr.io/raofoundation/subtensor-localnet:devnet
+
+  submit:
+    build:
+      context: ../..
+      dockerfile: demo/submit/Dockerfile
+    # Share the chain's network namespace so the code's ws://127.0.0.1:9944 reaches this localnet.
+    network_mode: service:chain
+    depends_on: [chain]
+    tty: true
+    stdin_open: true
+    volumes:
+      - ../../runtime:/logs   # transcript: runtime/submit-demo.log (gitignored)
+    environment:
+      MODEL_REPO: ${MODEL_REPO:-Qwen/Qwen2.5-VL-3B-Instruct}
+      MODEL_REVISION: ${MODEL_REVISION:-66285546d2b821cf421d4f5eb2576359d3770cd3}
+      TERM: xterm-256color
+      # Asked at step 2 when run in a terminal; set to skip the question: hf | lium
+      WEIGHTS_SOURCE: ${WEIGHTS_SOURCE:-}
+      # Only needed to actually rent a Lium GPU (paid, asks for confirmation). Never commit these.
+      LIUM_API_KEY: ${LIUM_API_KEY:-}
+      LIUM_NONINTERACTIVE: "1"

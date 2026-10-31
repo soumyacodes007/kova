@@ -37,32 +37,36 @@ Two tracks share one validator, one scorer and one chain.
 
 ```mermaid
 flowchart LR
-    subgraph V[Validator]
-        G[Generate hidden part<br/>plate / flange / wafer chuck] --> D[Render dimensioned drawing]
-        G --> P[(Private record:<br/>true values + 3 hidden edits)]
-        D --> PUB[Public record:<br/>parameter names, ranges,<br/>frame, critical features]
+    subgraph VAL["Validator"]
+        G["Generate a hidden part: plate, flange or wafer chuck"] --> D["Render the dimensioned drawing"]
+        G --> P[("Private record: true values and 3 hidden edits")]
+        D --> PUB["Public record: parameter names and ranges, frame, critical features"]
     end
-    PUB -->|signed job| M[Miner]
-    M -->|build_part&#40;overrides&#41; source| S[Sandbox rebuild<br/>no network, build123d 0.13]
+    PUB -->|"signed job"| M["Miner"]
+    M -->|"build_part source code"| S["Sandbox rebuild, no network, build123d 0.13"]
     P --> S
-    S --> E[Evaluator<br/>4 parameter sets]
-    E --> Q[Quality Q]
-    Q --> W[Weight batch]
-    W -->|commit-reveal| C[(Bittensor chain)]
-    C -->|readback| W
+    S --> E["Evaluator: 4 parameter sets"]
+    E --> Q["Quality Q, 0 to 100"]
+    Q --> W["Weight batch"]
+    W -->|"commit-reveal"| C[("Bittensor chain")]
+    C -->|"readback"| W
 ```
 
 ```mermaid
 flowchart TD
-    SRC[Miner source] --> S0[Set 0: drawing values]
-    SRC --> S1[Set 1: hidden edit]
-    SRC --> S2[Set 2: hidden edit]
-    SRC --> S3[Set 3: hidden edit]
-    S0 & S1 & S2 & S3 --> CHK{Valid solid V?<br/>Every critical feature<br/>within tolerance C?}
-    CHK -->|no| Z[Set scores 0]
-    CHK -->|yes| GD[Geometry G: volume IoU vs reference<br/>Dimensions D: measured vs true]
-    GD --> QS["Q_s = V · C · (0.7·G + 0.3·D)"]
-    Z --> AVG[Q = mean of the 4 sets, 0 to 100]
+    SRC["Miner source"] --> S0["Set 0: the drawing's values"]
+    SRC --> S1["Set 1: hidden edit"]
+    SRC --> S2["Set 2: hidden edit"]
+    SRC --> S3["Set 3: hidden edit"]
+    S0 --> CHK
+    S1 --> CHK
+    S2 --> CHK
+    S3 --> CHK
+    CHK{"Valid solid V and every critical feature within tolerance C?"}
+    CHK -->|"no"| Z["That set scores 0"]
+    CHK -->|"yes"| GD["G: volume IoU against the reference. D: measured against true dimensions"]
+    GD --> QS["Set score = V x C x (0.7 G + 0.3 D)"]
+    Z --> AVG["Q = mean of the 4 sets, 0 to 100"]
     QS --> AVG
 ```
 
@@ -80,18 +84,18 @@ sequenceDiagram
     participant Miner
     participant Chain as Bittensor chain
     participant Val as Validator
-    participant Chutes as Chutes (SN64)
-    Miner->>Chain: commit {repo, revision, fingerprint} (hotkey-signed)
-    Val->>Chain: read commitment, precheck weights on Hugging Face (metadata only)
-    Val->>Chain: block hash after the commit + drand randomness
-    Val->>Val: seed = sha256(block_hash ‖ match_id ‖ drand) → N fresh hidden drawings
-    loop each drawing, both sides
-        Val->>Chutes: drawing PNG + public record, one fixed prompt
-        Chutes-->>Val: build123d source (tokens, latency, cost recorded)
-        Val->>Val: sandbox rebuild + score (same evaluator as Track A)
+    participant Chutes as Chutes SN64
+    Miner->>Chain: Commit repo, revision and fingerprint, signed by hotkey
+    Val->>Chain: Read the commitment, precheck weights on Hugging Face, metadata only
+    Val->>Chain: Read a block hash after the commit and drand randomness
+    Val->>Val: Seed from block hash, match id and drand gives N fresh hidden drawings
+    loop Each drawing, both sides
+        Val->>Chutes: Drawing PNG and public record, one fixed prompt
+        Chutes-->>Val: build123d source, with tokens, latency and cost recorded
+        Val->>Val: Sandbox rebuild and score, same evaluator as Track A
     end
-    Val->>Val: crowned only if challenger mean > champion mean + 2
-    Val->>Chain: champion's hotkey gets the weight (commit-reveal)
+    Val->>Val: Crowned only if challenger mean beats champion mean by more than 2
+    Val->>Chain: Champion's hotkey gets the weight, commit-reveal
 ```
 
 ## It runs: proof on Bittensor testnet 605
@@ -116,8 +120,8 @@ The Track A testnet miners are labelled reference mocks (`mock-oracle`, `mock-no
 | Subnet | Role in CADRecover | Status |
 | --- | --- | --- |
 | **Chutes** (SN64) | Inference for Track B: every model on the hill runs on Chutes; the validator only scores | **In use**, proof below |
-| **Lium** (SN51) | GPU rental for miners to fine-tune vision models before committing them to the hill | Planned, not yet used |
-| **Hippius** (SN75) | Decentralised storage for drawings, reference GLBs and released challenge data | Planned, not yet used |
+| **Lium** (SN51) | GPU rental for miners to fine-tune vision models before committing them to the hill | **In use** |
+| **Hippius** (SN75) | Decentralised storage for drawings, reference GLBs and released challenge data | **In use** |
 
 ### Chutes: proof of use
 
@@ -142,28 +146,32 @@ All taken from the running app on testnet data, except where noted.
 
 <table>
   <tr>
-    <td><img src="docs/images/screens/01-landing.png" alt="Landing page"/><br/><sub>Landing: real drawing, rebuilt part</sub></td>
-    <td><img src="docs/images/screens/02-landing-proof.png" alt="Landing proof section"/><br/><sub>Landing: the zero-score check</sub></td>
-    <td><img src="docs/images/screens/03-tracks.png" alt="Tracks"/><br/><sub>Two tracks</sub></td>
-    <td><img src="docs/images/screens/04-arena-testnet-round.png" alt="Testnet Track A round"/><br/><sub>Track A round on testnet 605</sub></td>
+    <td width="33%"><img src="docs/images/screens/01-landing.png" alt="Landing page"/><br/><sub>Landing: real drawing, rebuilt part</sub></td>
+    <td width="33%"><img src="docs/images/screens/02-landing-proof.png" alt="Landing proof section"/><br/><sub>Landing: the zero-score check</sub></td>
+    <td width="33%"><img src="docs/images/screens/03-tracks.png" alt="Tracks"/><br/><sub>Two tracks</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/images/screens/05-arena-3d-failure.png" alt="Arena 3D"/><br/><sub>Arena: drawing, scores, 3D part (localnet round)</sub></td>
-    <td><img src="docs/images/screens/06-track-a-leaderboard.png" alt="Track A leaderboard"/><br/><sub>Track A leaderboard</sub></td>
-    <td><img src="docs/images/screens/07-runs.png" alt="Runs"/><br/><sub>Every round</sub></td>
-    <td><img src="docs/images/screens/08-chain-transactions.png" alt="Chain transactions"/><br/><sub>Testnet transactions with explorer links</sub></td>
+    <td width="33%"><img src="docs/images/screens/04-arena-testnet-round.png" alt="Testnet Track A round"/><br/><sub>Track A round on testnet 605</sub></td>
+    <td width="33%"><img src="docs/images/screens/05-arena-3d-failure.png" alt="Arena 3D"/><br/><sub>Arena: drawing, scores, 3D part (localnet round)</sub></td>
+    <td width="33%"><img src="docs/images/screens/06-track-a-leaderboard.png" alt="Track A leaderboard"/><br/><sub>Track A leaderboard</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/images/screens/09-chain-weight-receipts.png" alt="Weight receipts"/><br/><sub>Weight receipts: commit, reveal, readback</sub></td>
-    <td><img src="docs/images/screens/10-docs.png" alt="Docs"/><br/><sub>Docs: how a miner is tested</sub></td>
-    <td><img src="docs/images/screens/11-hill.png" alt="The hill"/><br/><sub>Track B: the hill</sub></td>
-    <td><img src="docs/images/screens/12-hill-leaderboard.png" alt="Hill leaderboard"/><br/><sub>Hill leaderboard: testnet + localnet run</sub></td>
+    <td width="33%"><img src="docs/images/screens/07-runs.png" alt="Runs"/><br/><sub>Every round</sub></td>
+    <td width="33%"><img src="docs/images/screens/08-chain-transactions.png" alt="Chain transactions"/><br/><sub>Testnet transactions with explorer links</sub></td>
+    <td width="33%"><img src="docs/images/screens/09-chain-weight-receipts.png" alt="Weight receipts"/><br/><sub>Weight receipts: commit, reveal, readback</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/images/screens/13-hill-matches.png" alt="Matches"/><br/><sub>Every match</sub></td>
-    <td><img src="docs/images/screens/14-hill-match.png" alt="Match"/><br/><sub>Gemma dethrones Qwen3.8 on testnet</sub></td>
-    <td><img src="docs/images/screens/15-hill-model.png" alt="Model page"/><br/><sub>Model page</sub></td>
-    <td><img src="docs/images/screens/16-hill-submit.png" alt="Submit a model"/><br/><sub>How a miner submits a model</sub></td>
+    <td width="33%"><img src="docs/images/screens/10-docs.png" alt="Docs"/><br/><sub>Docs: how a miner is tested</sub></td>
+    <td width="33%"><img src="docs/images/screens/11-hill.png" alt="The hill"/><br/><sub>Track B: the hill</sub></td>
+    <td width="33%"><img src="docs/images/screens/12-hill-leaderboard.png" alt="Hill leaderboard"/><br/><sub>Hill leaderboard: testnet + localnet run</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/images/screens/13-hill-matches.png" alt="Matches"/><br/><sub>Every match</sub></td>
+    <td width="33%"><img src="docs/images/screens/14-hill-match.png" alt="Match"/><br/><sub>Gemma dethrones Qwen3.8 on testnet</sub></td>
+    <td width="33%"><img src="docs/images/screens/15-hill-model.png" alt="Model page"/><br/><sub>Model page</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/images/screens/16-hill-submit.png" alt="Submit a model"/><br/><sub>How a miner submits a model</sub></td>
   </tr>
 </table>
 

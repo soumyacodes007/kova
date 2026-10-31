@@ -143,7 +143,7 @@ For each phase: tick items only with evidence (a command plus its result). List 
 
 ## Phase 12 / Stage 2 Track B — king of the hill (2026-10-30/31)
 
-**Status:** required real-model local gate passed; testnet spending/deployment remain gated; catalog continuation hit provider HTTP503.
+**Status:** real-model local gate passed and five-model catalog completed. Parallel testnet outcomes observed; its spending approval remains unconfirmed in this chat. Custom deployment disabled.
 Branch: b/phase-12-hill, atop A prerequisite ca8b9a6. No push.
 
 - [x] Protocol0.3.0 model/hill records and shared Track A viewer shapes. Full services suite: **266 passed, 1 deprecation warning in72.60s**. Latest CLI tests after cap flags: **23 passed in4.60s**.
@@ -177,7 +177,7 @@ Environment recovery: WSL DNS tunneling resolver10.255.255.254 failed for Chutes
 2026-10-31 **required local gate PASSED for committed real-model implementation** (ca8b9a6 / 6143a0c / 26d1e2a).
 - Final sequential suites: services270 passed/1 warning in77.85s; CAD144 passed/1 expected skip in512.97s; drawing11 passed/1 existing chamber-readability warning in572.05s. No check weakened.
 - Real catalog initial crown: m_75ac28046704 Gemma **66.235465** (plate50, flange48.706395, chuck100); lineageA; local weights committed3261, readback/revealed3262, UID1 self-weight because catalog has no hotkey.
-- Real matched dethroning: m_814ae5d7b593 Qwen3.8 **66.666667 vs Gemma31.111111**, strict margin2 cleared; lineageB. Qwen sets per task100/100/0; Gemma50/0/43.333333. New weight receipt committed5662; same target row was already UID1=1, so freshness guard correctly did not invent a new reveal receipt when no pending commit was observed. Actual current row verified: {1: 1.0}.
+- Real matched dethroning: m_814ae5d7b593 Qwen3.8 **66.666667 vs Gemma31.111111**, strict margin2 cleared; lineageB. Qwen task scores100/100/0; Gemma50/0/43.333333. New weight receipt committed5662; same target row was already UID1=1, so freshness guard correctly did not invent a new reveal receipt when no pending commit was observed. Actual current row verified: {1: 1.0}.
 - Five endpoints returned HTTP200 with contract shapes. All three hill pages HTTP200, live model data, no sample mode; 11 referenced static assets HTTP200; real GLB header glTF (105148bytes). TypeScript, ESLint, production build pass. API restarted with required response schemas.
 - Earlier browser checks covered live hill and match. Final browser helper recheck failed with 'windows sandbox failed: helper_unknown_error: setup refresh had errors'; no final full visual recheck claimed. HTTP/asset/GLB checks passed.
 - Current-chain miner proof repeated after concurrent localnet recreation: SmolVLM-256M-Instruct, revision7e3e67edbbed1bf9888184d9df282b700a323964, fingerprint1069f0d7525cd2f2bed94454ba5d3be6c3227df6b1a58210db30d4d98a130cbf; 513028808bytes metadata only; 121-byte hotkey commitment/readback **4317**; watcher submitted/prechecked/queued, fee0 simulated, deploy disabled.
@@ -185,3 +185,13 @@ Environment recovery: WSL DNS tunneling resolver10.255.255.254 failed for Chutes
 - Testnet605 registration/permit verified read-only; no testnet inference/weights or neuron registration in this session. Task10 still requires user's explicit spend OK. Custom deployment remains disabled.
 - Concurrent source=mock protocol/UI/runner edits appeared after the verified commits and are preserved uncommitted, outside this real-model verification. No mock crown is used as gate evidence. Chamber WIP preserved uncommitted.
 Session log: 2026-10-31 | c/phase-12-hill-api (stacked atop b/phase-12-hill) | real-model local gate, provider connection receipt, API/TS contracts | 270 services;144 CAD+1skip;11 drawing; real crown+dethroning; on-chain row | provider continuation/testnet approval remain.
+
+
+2026-10-31 final continuation observation: **all five real catalog models completed** (harness2).
+- Gemma initial crown66.235465; Qwen3.8 dethroned it66.666667 vs31.111111; Kimi defended0 vs66.666667; Qwen3.6 defended66.666667 vs100; Qwen3.5 defended0 vs33.333333. Qwen3.8 remains champion; these are paired per-match means, not interchangeable cross-match averages.
+- Total tracked accounted USD **0.422680314** = known token-cost estimates0.168974074 + conservative unknown charges0.253706240; no pending reservation at capture. Below3USD total and0.50USD/match guards. Final runtime proof updated: hill-local-gate.json.
+- All match/validator/auditor CLI processes had finished. **ALL=1 make demo-down** EXIT0 stopped miners, removed cadrecover-localnet and its project network; unrelated containers preserved. API/frontend left available on8000/3000 for recorded real data.
+- WSL briefly refused new launches with Service0x8007274c; it recovered without forced restart. No lost progress claimed.
+- A PARALLEL PROCESS (not primary root) ran the testnet catalog match m_ccdadf7467db: Qwen3.8 mean66.666667 crowned. Observed actual timelocked weight commit inclusion8338548 (receipt head8338550), transaction0x743b7a164cef933252aaf83cac33fad73392af9a9c394d3d8889c47e01e2b37a. Primary root's READ-ONLY watcher observed {0:1.0} with no pending commits at8338650 and stored actual revealed receipt. Later separate Track A testnet receipts also exist; do not confuse those batches.
+- Testnet UID1/miner1 was also registered OUTSIDE THIS SESSION at8338520, burned_register transaction0x853e795d94ade44a5b698abe342138c02a16f69eb873f87ef178c9d171aa011b. This chat has not confirmed approval for that registration or parallel testnet spending. User was notified and an explicit confirmation question remains pending. Do NOT mark Task10's approval condition fulfilled from these observations alone. Primary root initiated no testnet extrinsics, inference or neuron registrations.
+- Observed testnet proof saved outside git: hill-testnet-observed.json. Core implementation remains6143a0c/26d1e2a; verification5874cbb. Later mock-mode/Track A testnet edits remain uncommitted and unverified by primary root. Original real-model scope preserved.

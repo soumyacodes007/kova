@@ -52,6 +52,8 @@ Change log (newest first): `date · contract · old → new version · what chan
 
 ## Handoffs
 
+2026-10-31 final real-model continuation: all five catalog models finished; Qwen3.8 defended the hill. Accounted total0.422680314USD incl unknown charges, below3USD; all suites270/144(+1skip)/11 green for verified core. ALL=1 make demo-down EXIT0; localnet/miners stopped, API/frontend remain. Parallel testnet catalog commit8338548→actual revealed8338650 was observed read-only, and an additional miner1 registration8338520 occurred outside this session. Approval for those parallel spends is NOT confirmed in this chat; do not treat observation as authorization. Exact hashes and provenance in agent-b notes and runtime/logs/hill-testnet-observed.json. Concurrent mock-mode edits remain outside primary verification.
+
 2026-10-31 B/C verification handoff: local gate passed at commits6143a0c and26d1e2a atop waferca8b9a6. All actual measurements/evidence in notes/agent-b.md and ~/.cadrecover/runtime/logs/hill-local-gate.json. Chutes connection receipt response ID1a5d304e0e2349169142cd496af5f73c; live receipts /v1/events?kind=hill.provider_response. Remaining catalog provider503 is queued/interrupted, not a zero score. Active concurrent retry owns the localnet; stop it only after that work finishes. Later uncommitted mock-mode edits are outside this verification; original Track B real-model scope retained pending user clarification.
 
 2026-10-30 A → B/C: wafer chuck prerequisite committed `ca8b9a6` on a/phase-12-wafer-chuck. Sequential baseline suites services177 passed; CAD144 passed/1expected skip; drawing11 passed. Wafer evaluator self-test100/75/25/0 across3variants. B begins b/phase-12-hill atop this commit.

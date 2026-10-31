@@ -36,14 +36,12 @@ Two tracks share one validator, one scorer and one chain.
 ### Validation mechanism
 
 ```mermaid
-flowchart LR
-    subgraph VAL["Validator"]
-        G["Generate a hidden part: plate, flange or wafer chuck"] --> D["Render the dimensioned drawing"]
-        G --> P[("Private record: true values and 3 hidden edits")]
-        D --> PUB["Public record: parameter names and ranges, frame, critical features"]
-    end
+flowchart TB
+    G["Validator generates a hidden part"] --> D["Dimensioned drawing"]
+    G --> P[("Private record: true values, 3 hidden edits")]
+    D --> PUB["Public record: names, ranges, critical features"]
     PUB -->|"signed job"| M["Miner"]
-    M -->|"build_part source code"| S["Sandbox rebuild, no network, build123d 0.13"]
+    M -->|"build_part source code"| S["Sandbox rebuild, no network"]
     P --> S
     S --> E["Evaluator: 4 parameter sets"]
     E --> Q["Quality Q, 0 to 100"]
@@ -85,17 +83,16 @@ sequenceDiagram
     participant Chain as Bittensor chain
     participant Val as Validator
     participant Chutes as Chutes SN64
-    Miner->>Chain: Commit repo, revision and fingerprint, signed by hotkey
-    Val->>Chain: Read the commitment, precheck weights on Hugging Face, metadata only
-    Val->>Chain: Read a block hash after the commit and drand randomness
-    Val->>Val: Seed from block hash, match id and drand gives N fresh hidden drawings
-    loop Each drawing, both sides
-        Val->>Chutes: Drawing PNG and public record, one fixed prompt
-        Chutes-->>Val: build123d source, with tokens, latency and cost recorded
-        Val->>Val: Sandbox rebuild and score, same evaluator as Track A
+    Miner->>Chain: Commit model repo and revision
+    Val->>Chain: Read commitment, precheck weights
+    Val->>Val: Seed from block hash and drand
+    loop Each hidden drawing, both sides
+        Val->>Chutes: Drawing and fixed prompt
+        Chutes-->>Val: build123d source code
+        Val->>Val: Sandbox rebuild and score
     end
-    Val->>Val: Crowned only if challenger mean beats champion mean by more than 2
-    Val->>Chain: Champion's hotkey gets the weight, commit-reveal
+    Val->>Val: Crown if mean beats champion by more than 2
+    Val->>Chain: Weight to champion, commit-reveal
 ```
 
 ## It runs: proof on Bittensor testnet 605

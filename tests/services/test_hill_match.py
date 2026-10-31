@@ -220,3 +220,24 @@ def test_match_pins_harness_and_legacy_match_resumes_on_v1(setup):
     assert set(s.harnesses)=={match.HARNESS_VERSION}
     # A match stored before harness versioning has no record: it ran and must finish on harness 1.
     assert match.match_harness(s.con,"local","m_legacy")==1
+
+
+def test_mock_miner_is_localnet_only_and_routes_to_the_strategy(setup,monkeypatch):
+    from cadrecover.validator.hill import mock
+    s=setup
+    mk=model("mock-noisy (mock miner)",source="mock")
+    mk.base_model="mock-noisy"
+    with pytest.raises(match.HillUnavailable):
+        match.run_match(s.con,mk,None,tasks_per_match=1,network="finney",snapshot=SNAP,log=lambda _:None)
+    calls=[]
+    class Chutes:
+        budget=None; _catalog={}
+        def generate(self,*a): calls.append(a)
+    solved=[]
+    monkeypatch.setattr("cadrecover.miner.strategies.get",lambda name:NS(solve=lambda pub,png,job:solved.append((name,job)) or NS(source="x=1\n")))
+    gen=mock.HillRunner(Chutes()).generate("mock:mock-noisy",NS(challenge_id="ch_1"),b"png","m_1",2)
+    assert gen.source=="x=1\n" and gen.cost_usd==0 and solved==[("mock-noisy","m_1-ch_1")] and calls==[]
+    mock.HillRunner(Chutes()).generate("google/x",NS(challenge_id="ch_1"),b"png","m_1",2)
+    assert calls and calls[0][0]=="google/x" and calls[0][4]==2
+    with pytest.raises(ValueError):
+        mock.HillRunner(Chutes()).generate("mock:diag-crash",NS(challenge_id="ch_1"),b"png","m_1",2)

@@ -114,10 +114,14 @@ def _score(con, runner, model: Model, challenge_id: str, match_id: str, index: i
     png = image_path.read_bytes()
     if hashlib.sha256(png).hexdigest() != public.drawing.sha256:
         raise HillUnavailable("drawing hash mismatch")
-    catalog = runner._catalog or {m.id:m for m in runner.catalog()}
-    model_id = next((mid for mid in catalog if hashlib.sha256(("chutes-catalog:"+mid).encode()).hexdigest()==model.fingerprint),None)
-    if model_id is None:
-        raise HillUnavailable("catalog endpoint no longer available")
+    if model.source=="mock":
+        from cadrecover.validator.hill.mock import MOCK_PREFIX
+        model_id=MOCK_PREFIX+(model.base_model or "")
+    else:
+        catalog = runner._catalog or {m.id:m for m in runner.catalog()}
+        model_id = next((mid for mid in catalog if hashlib.sha256(("chutes-catalog:"+mid).encode()).hexdigest()==model.fingerprint),None)
+        if model_id is None:
+            raise HillUnavailable("catalog endpoint no longer available")
     # Persist a successful paid response before sandbox execution so an outage
     # retries the identical source and never buys a different answer.
     folder=paths.RUNTIME/"hill"/match_id/f"task{index}"/side
@@ -223,7 +227,9 @@ def _finalize(con, summary, challenger, champion, block, network):
 def run_match(con, challenger: Model, runner, *, tasks_per_match=10, margin=MARGIN, network="local",
               snapshot=None, log=print) -> MatchSummary:
     # Miner endpoints are not treated as catalog calls. Deployment must be enabled and verified separately.
-    if challenger.source != "catalog":
+    if challenger.source=="mock" and network not in ("local","test"):
+        raise HillUnavailable("the scripted mock miner runs on localnet or testnet only")
+    if challenger.source not in ("catalog","mock"):
         db.model_status(con,challenger,"queued",detail="deploy disabled on this network",network=network)
         raise HillUnavailable("deploy disabled on this network")
     champion=current_champion(con,network)
@@ -361,7 +367,7 @@ def _hill_lock(network):
 
 
 def run_catalog(*, network="local", tasks_per_match=10, max_spend_usd=.50, total_cap_usd=3.0,
-                margin=MARGIN, allow_testnet_spend=False, only=None, log=print) -> dict:
+                margin=MARGIN, allow_testnet_spend=False, only=None, set_weights=True, log=print) -> dict:
     from cadrecover.chain.setup import network_url
     from cadrecover.validator.hill.watcher import discover_model_commitments
     network_url(network)
@@ -400,12 +406,59 @@ def run_catalog(*, network="local", tasks_per_match=10, max_spend_usd=.50, total
                 if only and entry.id not in only: continue
                 result=run_match(con,model,runner,tasks_per_match=tasks_per_match,margin=margin,network=network,log=log)
                 results.append(result.model_dump(mode="json"))
-                submit_champion_weights(con,network=network,log=log)
+                # Both tracks share one validator weight vector; --no-weights defers the commit to the operator.
+                if set_weights:
+                    submit_champion_weights(con,network=network,log=log)
             spent=runner.budget.totals()
             log(f"[hill] Chutes spent/reserved total USD {spent:.6f} (cap {total_cap_usd:.2f})")
             return {"matches":results,"champion":current_champion(con,network).model_dump(mode="json") if current_champion(con,network) else None,
                     "spend_usd":spent,"total_cap_usd":total_cap_usd}
         finally:
             log(f"[hill] Chutes spent/reserved total USD {runner.budget.totals():.6f}")
+            runner.close()
+            con.close()
+
+
+def run_mock(*, strategy="mock-noisy", wallet="miner2", network="local", tasks_per_match=10,
+             max_spend_usd=.50, total_cap_usd=3.0, margin=MARGIN, allow_testnet_spend=False, set_weights=True,
+             log=print) -> dict:
+    """Enter Track A's scripted mock miner as a labelled challenger. Localnet only; the champion side still
+    runs on real Chutes inference and is charged as usual."""
+    from cadrecover.chain import bootstrap
+    from cadrecover.validator.hill.mock import MOCK_STRATEGIES, HillRunner, mock_fingerprint
+    if network not in ("local","test"):
+        raise ValueError("the scripted mock miner runs on localnet or testnet only")
+    if network=="test" and not allow_testnet_spend:
+        raise ValueError("testnet hill spending requires explicit allow_testnet_spend")
+    if strategy not in MOCK_STRATEGIES:
+        raise ValueError(f"strategy must be one of {MOCK_STRATEGIES}")
+    hotkey=bootstrap.wallet(wallet).hotkey.ss58_address
+    import bittensor as bt
+    from cadrecover.chain.setup import network_url
+    with bt.Subtensor(network_url(network)) as sub:
+        uid=sub.read("uid",netuid=bootstrap.load_state(network)["netuid"],hotkey_ss58=hotkey)
+    if uid is None:
+        raise HillUnavailable(f"{wallet} is not registered on {network}")
+    with _hill_lock(network):
+        con=db.connect()
+        runner=HillRunner(ChutesRunner(con,total_cap=total_cap_usd,match_cap=max_spend_usd))
+        try:
+            fp=mock_fingerprint(strategy,hotkey)
+            model={x.fingerprint:x for x in db.hill_models(con,network)}.get(fp)
+            if model is None:
+                model=Model(fingerprint=fp,name=f"{strategy} (mock miner)",source="mock",base_model=strategy,
+                            hotkey=hotkey,uid=uid,submitted_at=now(),status="submitted")
+                detail="scripted demo miner: reads drawn values from the validator's private record; not a model"
+                db.model_status(con,model,"submitted",detail=detail,network=network)
+                db.model_status(con,model,"prechecked",detail="localnet mock; no weights to check",network=network)
+                db.model_status(con,model,"queued",network=network)
+            if model.status=="champion":
+                raise HillUnavailable("the mock miner already holds the hill")
+            result=run_match(con,model,runner,tasks_per_match=tasks_per_match,margin=margin,network=network,log=log)
+            weights=submit_champion_weights(con,network=network,log=log) if set_weights else None
+            spent=runner.budget.totals()
+            log(f"[hill] Chutes spent/reserved total USD {spent:.6f} (cap {total_cap_usd:.2f})")
+            return {"match":result.model_dump(mode="json"),"weights":weights,"spend_usd":spent}
+        finally:
             runner.close()
             con.close()

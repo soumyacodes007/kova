@@ -63,7 +63,7 @@ class Fee(HillRecord):
 class Model(HillRecord):
     fingerprint: str
     name: str
-    source: Literal["catalog", "miner"]
+    source: Literal["catalog", "miner", "mock"]
     repo: str | None = None
     revision: str | None = None
     base_model: str | None = None

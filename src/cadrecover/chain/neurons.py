@@ -95,9 +95,12 @@ def submit_weights(weights: dict[int, float], network: str = "local", version_ke
         events = [e.get("event_id") for e in res.events or []]
         # what landed, from the chain's own events (not the hyperparameter): a commit or a plain set
         committed = any("Commit" in (e or "") for e in events)
+        # everything the SDK reports about the extrinsic, so receipts can be looked up on an explorer
+        tx = {k: str(getattr(res, k)) for k in ("block_hash", "extrinsic_id", "explorer_url", "fee")
+              if getattr(res, k, None) is not None}
         return {"state": "committed" if committed else "submitted", "block": block,
                 "extrinsic": getattr(res, "extrinsic_id", None) or getattr(res, "block_hash", None),
-                "events": events}
+                "events": events, "tx": tx}
 
 
 def read_weights(network: str = "local") -> dict:

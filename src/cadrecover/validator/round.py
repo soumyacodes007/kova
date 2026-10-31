@@ -34,7 +34,7 @@ def _discover(network: str, static: bool, log):
     """(miners, netuid, on_chain). Labels (strategy names) come from miners.json when present."""
     from cadrecover.chain import bootstrap
 
-    state = bootstrap.load_state()
+    state = bootstrap.load_state(network)
     if static or "netuid" not in state or state.get("network") != network:
         return discovery.static_miners(), 0, False
     from cadrecover.chain import neurons
@@ -66,7 +66,8 @@ def _set_weights(con, batch: WeightBatch, network: str, run_id: str, reveal_wait
     db.add_receipt(con, batch.batch_id, r["state"], block=r.get("block"), extrinsic=r.get("extrinsic"),
                    error=r.get("error"))
     db.add_event(con, f"weights.{r['state']}", {"batch_id": batch.batch_id, "block": r.get("block"),
-                                               "error": r.get("error"), "chain_events": r.get("events")}, run_id)
+                                               "error": r.get("error"), "chain_events": r.get("events"),
+                                               "tx": r.get("tx")}, run_id)
     log(f"[chain] weights {r['state']} at block {r.get('block')}" + (f": {r['error']}" if r.get("error") else ""))
     if r["state"] == "failed":
         return "failed"
@@ -147,7 +148,7 @@ async def _collect(miners, wallet, jobs: dict[str, JobRequest], deadline: dateti
 def run_round(*, family: str = "plate", deadline_s: int = 180, network: str = "local", static: bool = False,
               reveal_wait_s: float = 120, artifact_port: int = 8790, log=print) -> dict:
     con = db.connect()
-    wallet = bt.Wallet("validator", "default", path=str(paths.WALLETS))
+    wallet = bt.Wallet("owner" if network == "test" else "validator", "default", path=str(paths.WALLETS))
     miners, netuid, on_chain = _discover(network, static, log)
     server, base_url = artifacts.serve(port=artifact_port)
     try:

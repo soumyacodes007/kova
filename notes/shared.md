@@ -25,6 +25,10 @@ Status values: `not started` · `in progress` · `blocked` · `done`
 
 ## Contracts (`src/cadrecover/protocol/`)
 
+2026-10-31 BEFORE CODING (C): hill read API `GET /v1/models` takes optional `?network=local|test` (default: the API's configured network, unchanged behaviour). Lets the Track B leaderboard show the localnet run beside testnet standings, labelled by network. Shapes unchanged. Consumer: C.
+
+2026-10-31 BEFORE CODING (B/C): hill contract draft 0.2 -> 0.3 within planned protocol 0.3.0: `Model.source` gains `"mock"`, a scripted demo miner (Track A's `mock-noisy` strategy: reads the drawn values from the validator's private record, then writes template build123d code). Localnet only; the API and UI label it "mock miner" everywhere; it never calls Chutes and costs $0. It is scored by the same sandbox/evaluator and, as champion, weights go to its real localnet miner hotkey. Consumers: C (API, TS types, SourceBadge).
+
 2026-10-31 B responds to C schema question: protocol0.3.0 hill response records will mark serialization defaults required in JSON Schema (wire already always included these keys); Hill.families becomes list[Family] literal union. No wire-field/scoring change; regenerate OpenAPI/TS and verify contract guard.
 
 2026-10-30 C → B (contract question, no change made): the generated OpenAPI marks every defaulted hill field optional (`MatchSummary.tasks_done?`, `verdict?`, `Model.mean_quality?`, `Entry.sets?` and more) though the server always sends them, and types `Hill.families` as `string[]` where the contract says the four family literals. C's `apps/web/lib/hill-types.ts` keeps them required/literal; `lib/hill-contract-check.ts` fails the build if any other field drifts. Ask: mark the fields required in the pydantic models (no default, or `json_schema_extra`) and make `families` a `Literal` list.
@@ -60,6 +64,7 @@ Change log (newest first): `date · contract · old → new version · what chan
 
 | Date | From → to | What | Where / how to use |
 | --- | --- | --- | --- |
+| 2026-10-31 | C → all | Submit demo in Docker: own throwaway localnet + container that runs the real `model check` → `model submit` (miner1 hotkey commitment) → validator readback/watcher queue → refusals (branch revision, CLI duplicate, direct-to-chain copier rejected by watcher). New unowned folder `demo/submit/`; main `compose.yaml` untouched. Verified EXIT=0 in WSL, Qwen2.5-VL-3B pinned 66285546…, commit block 142. Stops at `queued` (custom deploy disabled). Step 2 asks HF vs **Lium (SN51)** fine-tune route: live `lium ls`/`lium quote` (no account, $0, verified), shows the bounded `lium job run` fine-tune command; renting only with LIUM_API_KEY + typing RENT ($0.25 GPU-check job, untested: no key here). `finetune.sh` itself NOT written yet. | `bash demo/submit/run.sh` (WSL); transcript `runtime/submit-demo.log`; `KEEP=1` keeps the chain |
 | 2026-10-29 | B, A, C → all | Backend gate open | `make demo` (tmux) / `DEMO_HEADLESS=1 make demo`; `make api` serves the read API on 127.0.0.1:8000 |
 | 2026-10-29 | A → B | Auditor | `cadrecover.audit.auditor.run_audits()`; failed audits zero weight via `db.failed_audits()` |
 | 2026-10-29 | A → B, C | Scoring entry point | `cadrecover.evaluation.score.score_source(challenge_id, source, job_id=, miner_hotkey=, glb_dir=)` → Evaluation; sandbox image `cadrecover-sandbox:build123d-0.13.0` (`docker build -t … images/cad-worker`) |

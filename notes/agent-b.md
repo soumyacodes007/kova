@@ -198,3 +198,5 @@ Session log: 2026-10-31 | c/phase-12-hill-api (stacked atop b/phase-12-hill) | r
 
 
 Final cleanup follow-up: literal curl checks returned200 for all five API routes and /hill, /hill/leaderboard, /hill/match/m_814ae5d7b593 after localnet shutdown. No mock model rows existed. The removed localnet's now-stale chain.json was archived under ~/.cadrecover/chain.completed-hill-<UTC>.json (not deleted), so the next make demo can bootstrap a fresh local chain rather than trusting stale UIDs/netuid. chain-test.json, wallets, DB, artifacts and testnet state were preserved. This is runtime cleanup only; no code/scoring change. Core/API commits remain6143a0c/26d1e2a; evidence commits5874cbb/f3422cf.
+
+2026-10-31 README-only follow-up: changed Lium/Hippius ecosystem status labels to **In use** at user's explicit request. Verified git diff contains the two README row edits; no runtime changes or integration verification.

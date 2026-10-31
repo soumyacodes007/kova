@@ -75,6 +75,8 @@ Change log (newest first): `date · contract · old → new version · what chan
 
 ## Requests (change in a file you don't own)
 
+2026-10-31 B: user explicitly requested README-only status labels for Lium (SN51) and Hippius (SN75) changed from planned to in use. Applied to the two ecosystem table rows; no integration or live-use verification performed by this edit.
+
 2026-10-31 B → C: api/hill.py Family literal import/type is a small schema unblock requested by C; B applies it and regenerates the shared OpenAPI/TS. C's frontend otherwise preserved.
 
 2026-10-30 A → C: prerequisite wafer-chuck commit includes wafer dispatch in existing miner/templates.py, miner/strategies.py, cli.py and template tests; C coordinates selective staging. Approved by session task scope.
